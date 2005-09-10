@@ -1,10 +1,10 @@
-package Parse::MediaWikiDump::Pages;
-
-our $VERSION = '0.1';
-
+our $VERSION = '0.2';
+#the POD is at the end of this file
 #avoid shift - it is computationally more expensive than pop
 #and shifting values for subroutine input should be avoided in
 #any subroutines that get called often, like the handlers
+
+package Parse::MediaWikiDump::Pages;
 
 use strict;
 use warnings;
@@ -763,8 +763,6 @@ sub link {
 		if (defined($link = pop(@$buffer))) {
 			last;
 		}
-
-		last if defined($link = pop(@$buffer));
 
 		#signals end of input
 		return undef unless $self->parse_more;

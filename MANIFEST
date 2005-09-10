@@ -1,3 +1,4 @@
+test_data.xml
 Changes
 MANIFEST
 META.yml # Will be created by "make dist"
@@ -7,3 +8,4 @@ lib/Parse/MediaWikiDump.pm
 t/00-load.t
 t/pod-coverage.t
 t/pod.t
+t/tester.t

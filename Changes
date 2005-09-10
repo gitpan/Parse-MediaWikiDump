@@ -1,5 +1,8 @@
 Revision history for Parse-MediaWikiDump
 
-0.01    Date/time
+0.2    September 9, 2005
+	* Add tests and test data
+
+0.1    September 6, 2005
         First version, released on an unsuspecting world.
 
