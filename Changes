@@ -1,5 +1,14 @@
 Revision history for Parse-MediaWikiDump
 
+0.3    Unreleased
+	* Improve testing of Parse::MediaWikiDump::Pages
+	* Fix silly bug related to opening file handle references
+	* Found new bug: The links dump format has been changed and the
+	  existing code can not parse the new format
+   	* Found new bug: comprehensive dump files like 
+	  20050909_pages_full.xml.gz cause the stack to grow too large and
+	  the module to abort early. 
+
 0.2    September 9, 2005
 	* Add tests and test data
 

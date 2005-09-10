@@ -1,9 +1,9 @@
 Parse-MediaWikiDump
 
 Parse::MediaWikiDump is a collection of classes for processing various
-MediaWiki dump files; the package requires XML::Parser. Using 
-Parse::MediaWikiDump it is nearly trivial to get access to the information
-in supported dump files.
+MediaWiki dump files such as those at http://download.wikimedia.org/wikipedia/en/; 
+the package requires XML::Parser. Using this software  it is nearly 
+trivial to get access to the information in supported dump files.
 
 INSTALLATION
 
@@ -13,6 +13,11 @@ To install this module, run the following commands:
     make
     make test
     make install
+
+BUGS
+
+Yes, they are known to exist; see the POD for details on the current known
+bugs. 
 
 EXAMPLE
 

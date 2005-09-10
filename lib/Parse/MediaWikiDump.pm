@@ -1,4 +1,4 @@
-our $VERSION = '0.2';
+our $VERSION = '0.21';
 #the POD is at the end of this file
 #avoid shift - it is computationally more expensive than pop
 #and shifting values for subroutine input should be avoided in
@@ -139,7 +139,7 @@ sub open {
 	my $self = shift;
 	my $source = shift;
 
-	if (scalar($source) eq 'GLOB') {
+	if (ref($source) eq 'GLOB') {
 		$$self{SOURCE} = $source;
 	} elsif (! open($$self{SOURCE}, $source)) {
 		die "could not open $source: $!";
@@ -564,6 +564,7 @@ sub token2text {
 	}
 }
 
+#this function is where the majority of time is spent in this software
 sub token_compare {
 	my ($toke1, $toke2) = @_;
 
@@ -800,7 +801,7 @@ sub open {
 	my $self = shift;
 	my $source = shift;
 
-	if (scalar($source) ne 'GLOB') {
+	if (ref($source) ne 'GLOB') {
 		die "could not open $source: $!" unless
 			open($$self{SOURCE}, $source);
 	} else {
@@ -822,7 +823,7 @@ sub init {
 		}
 	}
 
-	die "not a Mediawiki link dump file" unless $found;
+	die "not a MediaWiki link dump file" unless $found;
 }
 
 package Parse::MediaWikiDump::link;
@@ -855,22 +856,26 @@ __END__
 
 =head1 NAME
 
-Parse::MediaWikiDump - Tools to process Mediawiki dump files
+Parse::MediaWikiDump - Tools to process MediaWiki dump files
 
 =head1 SYNOPSIS
 
   use Parse::MediaWikiDump;
 
-  $source = '20050713_pages.xml';
+  $source = 'dump_filename.ext';
   $source = \*FILEHANDLE;
-  $source = shift(@ARGV);
 
   $pages = Parse::MediaWikiDump::Pages->new($source);
   $links = Parse::MediaWikiDump::Links->new($source);
 
-  #get one record from the dump file
-  $page = $pages->page;
-  $link = $links->link;
+  #get all the records from the dump files, one record at a time
+  while(defined($page = $pages->page)) {
+    print "title '", $page->title, "' id ", $page->id, "\n";
+  }
+
+  while(defined($link = $links->link)) {
+    print "link from ", $link->from, " to ", $link->to, "\n";
+  }
 
   #information about the page dump file
   $pages->sitename;
@@ -898,7 +903,7 @@ Parse::MediaWikiDump - Tools to process Mediawiki dump files
 =head1 DESCRIPTION
 
 This module provides the tools needed to process the contents of various 
-Mediawiki dump files. 
+MediaWiki dump files. 
 
 =head1 USAGE
 
@@ -913,10 +918,10 @@ Parse the contents of the page archive.
 
 =item Parse::MediaWikiDump::Links
 
-Parse the link list dump file. *WARNING* The probability of this dump
-file existing after the dumpfile format change is unknown. As of this writing
-there is no links dump file to match the current page dump file but this 
-class is able to parse the available dump files. 
+Parse the link list dump file. *WARNING* The dump format has changed and this
+software needs to be updated to match it. Consequently the most recent English
+Wikipedia links dump that can be parsed is from June 2005 which is out of sync
+with the current pages dump.
 
 =back
 
@@ -977,7 +982,7 @@ namespace number and the second is the namespace name. In the case of namespace
 
 =head3 Parse::MediaWikiDump::page
 
-The Parse::MediaWikiDump::page object represents a distinct Mediawiki page, 
+The Parse::MediaWikiDump::page object represents a distinct MediaWiki page, 
 article, module, what have you. These objects are returned by the page method
 of a Parse::MediaWikiDump::Pages instance. The scalar returned is a reference
 to a hash that contains all the data of the page in a straightforward manor. 
@@ -1034,7 +1039,7 @@ filehandle. For example:
   $links = Parse::MediaWikiDump::Links->new(\*FH);
 
 It is then possible to extract the links a single link at a time using the
-->link method, which returns an instance of Parse::MediaWikiDump::link or undef
+link method, which returns an instance of Parse::MediaWikiDump::link or undef
 when there is no more data. For instance: 
 
   while(defined($link = $links->link)) {
@@ -1068,7 +1073,7 @@ it is not a part of the standard interface so it is undocumented.
   use strict;
   use Parse::MediaWikiDump;
 
-  my $file = shift(@ARGV) or die "must specify a Mediawiki dump file";
+  my $file = shift(@ARGV) or die "must specify a MediaWiki dump file";
   my $pages = Parse::MediaWikiDump::Pages->new($file);
   my $page;
 
@@ -1086,7 +1091,7 @@ it is not a part of the standard interface so it is undocumented.
   use strict;
   use Parse::MediaWikiDump;
 
-  my $file = shift(@ARGV) or die "must specify a Mediawiki dump file";
+  my $file = shift(@ARGV) or die "must specify a MediaWiki dump file";
   my $pages = Parse::MediaWikiDump::Pages->new($file);
   my $page;
   my %redirs;
@@ -1193,6 +1198,19 @@ C<bug-parse-mediawikidump@rt.cpan.org>, or through the web interface at
 L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Parse-MediaWikiDump>.
 I will be notified, and then you'll automatically be notified of progress on
 your bug as I make changes.
+
+=head2 Known Bugs
+
+Parse::MediaWikiDump::Pages can only handle the current dumps, not the 
+comprehensive dump files. For instance http://download.wikimedia.org/wikipedia/en/20050713_pages_current.xml.gz
+is ok but http://download.wikimedia.org/wikipedia/en/20050713_pages_full.xml.gz 
+will most likely lead to the program aborting early due to uncontrolled stack
+growth. 
+
+The format of the links dumps has been changed and Parse::MediaWikiDump::Links 
+can not deal with the new format. It will need to be modified for the new
+dump files. 
+
 
 =head1 COPYRIGHT & LICENSE
 
