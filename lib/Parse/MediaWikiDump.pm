@@ -1,4 +1,4 @@
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 #the POD is at the end of this file
 #avoid shift - it is computationally more expensive than pop
 #and shifting values for subroutine input should be avoided in
@@ -21,7 +21,8 @@ sub new {
 
 	bless($self, $class);
 
-	$$self{PARSER} = XML::Parser->new;
+	$$self{PARSER} = XML::Parser->new(ProtocolEncoding => 'UTF-8');
+#	$$self{PARSER} = XML::Parser->new();
 	$$self{PARSER}->setHandlers('Start', \&start_handler,
 				    'End', \&end_handler,
 				    'Char', \&char_handler);
@@ -29,6 +30,7 @@ sub new {
 	$$self{BUFFER} = []; 
 	$$self{CHUNK_SIZE} = 32768;
 	$$self{BUF_LIMIT} = 10000;
+	$$self{BYTE} = 0;
 
 	$self->open($source);
 	$self->init;
@@ -62,9 +64,8 @@ sub page {
 
 sub current_byte {
 	my $self = shift;
-#	my $bytes = $$self{EXPAT}->current_byte;
 
-	return(sprintf("%d", $$self{EXPAT}->current_byte));
+	return $$self{BYTE};
 }
 
 sub dump {
@@ -145,6 +146,8 @@ sub open {
 		die "could not open $source: $!";
 	}
 
+	binmode($$self{SOURCE}, ':utf8');
+
 	return 1;
 }
 
@@ -172,16 +175,17 @@ sub parse_more {
 	my ($self) = @_;
 	my $buf;
 
-	my $ret = read($$self{SOURCE}, $buf, $$self{CHUNK_SIZE});
+	my $read = read($$self{SOURCE}, $buf, $$self{CHUNK_SIZE});
 
-	if ($ret == 0) {
+	if (! defined($read)) {
+		die "error during read: $!";
+	} elsif ($read == 0) {
 		$$self{FINISHED} = 1;
 		$$self{EXPAT}->parse_done();
 		return 0;
-	} elsif (! defined($ret)) {
-		die "error during read: $!";
 	}
 
+	$$self{BYTE} += $read;
 	$$self{EXPAT}->parse_more($buf);
 
 	my $buflen = scalar(@{$$self{BUFFER}});
@@ -411,6 +415,22 @@ sub parse_page {
 			}
 		} elsif ($state eq 'in_revision') {
 			if (token_compare($token, [T_END, 'revision'])) {
+				#If a comprehensive dump file is parsed
+				#it can cause uncontrolled stack growth and the
+				#parser only returns one revision out of
+				#all revisions - if we run into a 
+				#comprehensive dump file, indicated by more
+				#than one <revision> section inside a <page>
+				#section then die with a message
+
+				#just peeking ahead, don't want to update
+				#the index
+				$token = $$buffer[$i + 1];
+
+				if (token_compare($token, [T_START, 'revision'])) {
+					die "unable to properly parse comprehensive dump files";
+				}
+
 				$state = 'in_page';
 				next;	
 			} elsif (token_compare($token, [T_START, 'contributor'])) {
@@ -783,8 +803,8 @@ sub parse_more {
 
 		last unless defined($line);
 
-		while($line =~ m/\((\d+),(\d+)\)[;,]/g) {
-			push(@{$$self{BUFFER}}, [$1, $2]);
+		while($line =~ m/\((\d+),(-?\d+),'(.*?)'\)[;,]/g) {
+			push(@{$$self{BUFFER}}, [$1, $2, $3]);
 			$need_data = 0;
 		}
 	}
@@ -808,6 +828,8 @@ sub open {
 		$$self{SOURCE} = $source;
 	}
 
+	binmode($$self{SOURCE}, ':utf8');
+
 	return 1;
 }
 
@@ -817,7 +839,7 @@ sub init {
 	my $found = 0;
 	
 	while(<$source>) {
-		if (m/^LOCK TABLES `links` WRITE;/) {
+		if (m/^LOCK TABLES `pagelinks` WRITE;/) {
 			$found = 1;
 			last;
 		}
@@ -840,15 +862,19 @@ sub new {
 
 sub from {
 	my $self = shift;
-
 	return $$self[0];
+}
+
+sub namespace {
+	my $self = shift;
+	return $$self[1];
 }
 
 sub to {
 	my $self = shift;
-
-	return $$self[1];
+	return $$self[2];
 }
+
 
 1;
 
@@ -899,6 +925,7 @@ Parse::MediaWikiDump - Tools to process MediaWiki dump files
   #information about a link
   $link->from;
   $link->to;
+  $link->namespace;
 
 =head1 DESCRIPTION
 
@@ -918,10 +945,7 @@ Parse the contents of the page archive.
 
 =item Parse::MediaWikiDump::Links
 
-Parse the link list dump file. *WARNING* The dump format has changed and this
-software needs to be updated to match it. Consequently the most recent English
-Wikipedia links dump that can be parsed is from June 2005 which is out of sync
-with the current pages dump.
+Parse the contents of the links dump file. 
 
 =back
 
@@ -1016,7 +1040,8 @@ a redirect.
 =item $page->categories
 
 Returns a reference to an array that contains a list of categories or undef
-if there are no categories.
+if there are no categories. This method does not understand templates and may
+not return all the categories the article actually belongs in. 
 
 =item $page->revision_id
 
@@ -1055,130 +1080,224 @@ Parse::MediaWikiDump::Links instance. The following methods are available:
 
 =item $link->from
 
+The numerical id the link was in. 
+
 =item $link->to
+
+The plain text name the link is to, minus the namespace.
+
+=item $link->namespace
+
+The numerical id of the namespace the link points to. 
 
 =back
 
-These methods extract the numerical id of the article that is linked from and 
-to. It is possible to extract the values from the underlying data structure 
-(instead of using the object methods). While this can yield a speed increase
-it is not a part of the standard interface so it is undocumented.
-
 =head1 EXAMPLES
 
-=head2 Find uncategorized articles in the main name space
+=head2 Extract the article text for a given title
 
-  #!/usr/bin/perl -w
+  #!/usr/bin/perl
   
   use strict;
+  use warnings;
   use Parse::MediaWikiDump;
-
-  my $file = shift(@ARGV) or die "must specify a MediaWiki dump file";
-  my $pages = Parse::MediaWikiDump::Pages->new($file);
-  my $page;
-
-  while(defined($page = $pages->page)) {
-    #main namespace only           
-    next unless $page->namespace eq '';
-
-    print $page->title, "\n" unless defined($page->categories);
+  
+  my $file = shift(@ARGV) or die "must specify a MediaWiki dump of the current pages";
+  my $title = shift(@ARGV) or die "must specify an article title";
+  my $dump = Parse::MediaWikiDump::Pages->new($file);
+  
+  binmode(STDOUT, ':utf8');
+  binmode(STDERR, ':utf8');
+  
+  #this is the only currently known value but there could be more in the future
+  if ($dump->case ne 'first-letter') {
+    die "unable to handle any case setting besides 'first-letter'";
   }
-
-=head2 Find double redirects in the main name space
-
-  #!/usr/bin/perl -w
-
-  use strict;
-  use Parse::MediaWikiDump;
-
-  my $file = shift(@ARGV) or die "must specify a MediaWiki dump file";
-  my $pages = Parse::MediaWikiDump::Pages->new($file);
-  my $page;
-  my %redirs;
-
-  while(defined($page = $pages->page)) {
-    next unless $page->namespace eq '';
-    next unless defined($page->redirect);
-
-    my $title = $page->title;
-
-    $redirs{$title} = $page->redirect;
-  }
-
-  foreach my $key (keys(%redirs)) {
-    my $redirect = $redirs{$key};
-    if (defined($redirs{$redirect})) {
-      print "$key\n";
+  
+  $title = case_fixer($title);
+  
+  while(my $page = $dump->page) {
+    if ($page->title eq $title) {
+      print STDERR "Located text for $title\n";
+      my $text = $page->text;
+      print $$text;
+      exit 0;
     }
   }
+  
+  print STDERR "Unable to find article text for $title\n";
+  exit 1;
+  
+  #removes any case sensativity from the very first letter of the title
+  #but not from the optional namespace name
+  sub case_fixer {
+    my $title = shift;
+  
+    #check for namespace
+    if ($title =~ /^(.+?):(.+)/) {
+      $title = $1 . ':' . ucfirst($2);
+    } else {
+      $title = ucfirst($title);
+    }
+  
+    return $title;
+  }
 
-=head2 Find the stub with the most links to it
+=head2 Scan the dump file for double redirects
 
-  #!/usr/bin/perl -w
+  #!/usr/bin/perl
+  
+  #progress information goes to STDERR, a list of double redirects found
+  #goes to STDOUT
+  
+  binmode(STDOUT, ":utf8");
+  binmode(STDERR, ":utf8");
   
   use strict;
+  use warnings;
   use Parse::MediaWikiDump;
   
-  my $pages = Parse::MediaWikiDump::Pages->new(shift(@ARGV));
-  my $links = Parse::MediaWikiDump::Links->new(shift(@ARGV));
-  my %stubs;
+  my $file = shift(@ARGV);
+  my $pages;
   my $page;
-  my $link;
-  my @list;
+  my %redirs;
+  my $artcount = 0;
+  my $file_size;
+  my $start = time;
   
-  select(STDERR);
-  $| = 1;
-  print '';
-  select(STDOUT);
+  if (defined($file)) {
+  	$file_size = (stat($file))[7];
+  	$pages = Parse::MediaWikiDump::Pages->new($file);
+  } else {
+  	print STDERR "No file specified, using standard input\n";
+  	$pages = Parse::MediaWikiDump::Pages->new(\*STDIN);
+  }
   
-  print STDERR "Locating stubs: ";
+  #the case of the first letter of titles is ignored - force this option
+  #because the other values of the case setting are unknown
+  die 'this program only supports the first-letter case setting' unless
+  	$pages->case eq 'first-letter';
+  
+  print STDERR "Analyzing articles:\n";
   
   while(defined($page = $pages->page)) {
-  	next unless $page->namespace eq '';
+    update_ui() if ++$artcount % 500 == 0;
   
-  	my $text = $page->text;
+    #main namespace only
+    next unless $page->namespace eq '';
+    next unless defined($page->redirect);
   
-  	next unless $$text =~ m/stub}}/i;
-  
-  	my $title = $page->title;
-  	my $id = $page->id;
-  
-  	$stubs{$id} = [$title, 0];
+    my $title = case_fixer($page->title);
+    #create a list of redirects indexed by their original name
+    $redirs{$title} = case_fixer($page->redirect);
   }
   
-  print STDERR scalar(keys(%stubs)), " stubs found\n";
+  my $redir_count = scalar(keys(%redirs));
+  print STDERR "done; searching $redir_count redirects:\n";
   
-  print STDERR "Processing links: ";
+  my $count = 0;
   
-  while(defined($link = $links->link)) {
-  	my $to = $link->to;
+  #if a redirect location is also a key to the index we have a double redirect
+  foreach my $key (keys(%redirs)) {
+    my $redirect = $redirs{$key};
   
-  	next unless defined($stubs{$to});
-  
-  	$stubs{$to}->[1]++;
+    if (defined($redirs{$redirect})) {
+      print "$key\n";
+      $count++;
+    }
   }
   
-  print STDERR "done\n";
+  print STDERR "discovered $count double redirects\n";
   
-  while(my ($key, $val) = each(%stubs)) {
-  	push(@list, $val);
+  #removes any case sensativity from the very first letter of the title
+  #but not from the optional namespace name
+  sub case_fixer {
+    my $title = shift;
+  
+    #check for namespace
+    if ($title =~ /^(.+?):(.+)/) {
+      $title = $1 . ':' . ucfirst($2);
+    } else {
+      $title = ucfirst($title);
+    }
+  
+    return $title;
   }
   
-  @list = sort({ $$b[1] <=> $$a[1]} @list);
+  sub pretty_bytes {
+    my $bytes = shift;
+    my $pretty = int($bytes) . ' bytes';
   
-  my $stub = $list[0]->[0];
-  my $num_links = $list[0]->[1];
+    if (($bytes = $bytes / 1024) > 1) {
+      $pretty = int($bytes) . ' kilobytes';
+    }
   
-  print "Most wanted stub: $stub with $num_links links\n";
+    if (($bytes = $bytes / 1024) > 1) {
+      $pretty = sprintf("%0.2f", $bytes) . ' megabytes';
+    }
+  
+    if (($bytes = $bytes / 1024) > 1) {
+      $pretty = sprintf("%0.4f", $bytes) . ' gigabytes';
+    }
+  
+    return $pretty;
+  }
+  
+  sub pretty_number {
+    my $number = reverse(shift);
+    $number =~ s/(...)/$1,/g;
+    $number = reverse($number);
+    $number =~ s/^,//;
+  
+    return $number;
+  }
+  
+  sub update_ui {
+    my $seconds = time - $start;
+    my $bytes = $pages->current_byte;
+  
+    print STDERR "  ", pretty_number($artcount),  " articles; "; 
+    print STDERR pretty_bytes($bytes), " processed; ";
+  
+    if (defined($file_size)) {
+      my $percent = int($bytes / $file_size * 100);
+  
+      print STDERR "$percent% completed\n"; 
+    } else {
+      my $bytes_per_second = int($bytes / $seconds);
+      print STDERR pretty_bytes($bytes_per_second), " per second\n";
+    }
+  }
 
 =head1 TODO
 
 =over 4
 
+=item Support comprehensive dump files
+
+Currently the full page dump files (such as 20050909_pages_full.xml.gz) 
+are not supported.
+
 =item Optomization 
 
-It would be nice to increase the processing speed of the XML files but short of
-an implementation using XS I'm not sure what to do. 
+It would be nice to increase the processing speed of the XML files. Current
+ideas:
+
+=over 4
+
+=item Move to arrays instead of hashes for base objects 
+
+Currently the base types for the majority of the classes are hashes. The 
+majority of these could be changed to arrays and numerical constants instead
+of using hashesh. 
+
+=item Stackless parsing
+
+placing each XML token on the stack is probably quite time consuming. It may be
+beter to move to a stackless system where the XML parser is given a new set
+of callbacks to use when it encounters each specific token.
+
+=back
 
 =item Testing
 
@@ -1201,16 +1320,7 @@ your bug as I make changes.
 
 =head2 Known Bugs
 
-Parse::MediaWikiDump::Pages can only handle the current dumps, not the 
-comprehensive dump files. For instance http://download.wikimedia.org/wikipedia/en/20050713_pages_current.xml.gz
-is ok but http://download.wikimedia.org/wikipedia/en/20050713_pages_full.xml.gz 
-will most likely lead to the program aborting early due to uncontrolled stack
-growth. 
-
-The format of the links dumps has been changed and Parse::MediaWikiDump::Links 
-can not deal with the new format. It will need to be modified for the new
-dump files. 
-
+No known bugs at this time. 
 
 =head1 COPYRIGHT & LICENSE
 

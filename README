@@ -1,9 +1,10 @@
 Parse-MediaWikiDump
 
 Parse::MediaWikiDump is a collection of classes for processing various
-MediaWiki dump files such as those at http://download.wikimedia.org/wikipedia/en/; 
-the package requires XML::Parser. Using this software  it is nearly 
-trivial to get access to the information in supported dump files.
+MediaWiki dump files such as those at 
+http://download.wikimedia.org/wikipedia/en/; the package requires XML::Parser. 
+Using this software it is nearly trivial to get access to the information in 
+supported dump files.
 
 INSTALLATION
 
@@ -14,76 +15,62 @@ To install this module, run the following commands:
     make test
     make install
 
-BUGS
-
-Yes, they are known to exist; see the POD for details on the current known
-bugs. 
-
 EXAMPLE
 
-A short program which finds the stub in the main name space with the most
-links to it
+Extract the text for a given article from the given dump file:
 
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 
 use strict;
+use warnings;
 use Parse::MediaWikiDump;
 
-my $pages = Parse::MediaWikiDump::Pages->new(shift(@ARGV));
-my $links = Parse::MediaWikiDump::Links->new(shift(@ARGV));
-my %stubs;
-my $page;
-my $link;
-my @list;
+my $file = shift(@ARGV) or die "must specify a MediaWiki dump of the current pages";
+my $title = shift(@ARGV) or die "must specify an article title";
+my $dump = Parse::MediaWikiDump::Pages->new($file);
 
-select(STDERR);
-$| = 1;
-print '';
-select(STDOUT);
+binmode(STDOUT, ':utf8');
+binmode(STDERR, ':utf8');
 
-print STDERR "Locating stubs: ";
-
-while(defined($page = $pages->page)) {
-	next unless $page->namespace eq '';
-
-	my $text = $page->text;
-
-	next unless $$text =~ m/stub}}/i;
-
-	my $title = $page->title;
-	my $id = $page->id;
-
-	$stubs{$id} = [$title, 0];
+#this is the only currently known value but there could be more in the future
+if ($dump->case ne 'first-letter') {
+  die "unable to handle any case setting besides 'first-letter'";
 }
 
-print STDERR scalar(keys(%stubs)), " stubs found\n";
+#enforce the MediaWiki case rules
+$title = case_fixer($title);
 
-print STDERR "Processing links: ";
-
-while(defined($link = $links->link)) {
-	my $to = $link->to;
-
-	next unless defined($stubs{$to});
-
-	$stubs{$to}->[1]++;
+#iterate over the entire dump file, article by article
+while(my $page = $dump->page) {
+  if ($page->title eq $title) {
+    print STDERR "Located text for $title\n";
+    my $text = $page->text;
+    print $$text;
+    exit 0;
+  }
 }
 
-print STDERR "done\n";
+print STDERR "Unable to find article text for $title\n";
+exit 1;
 
-while(my ($key, $val) = each(%stubs)) {
-	push(@list, $val);
+#removes any case sensativity from the very first letter of the title
+#but not from the optional namespace name
+sub case_fixer {
+  my $title = shift;
+
+  #check for namespace
+  if ($title =~ /^(.+?):(.+)/) {
+    $title = $1 . ':' . ucfirst($2);
+  } else {
+    $title = ucfirst($title);
+  }
+
+  return $title;
 }
 
-@list = sort({ $$b[1] <=> $$a[1]} @list);
+COPYRIGHT & LICENSE
+       Copyright 2005 Tyler Riddle, all rights reserved.
 
-my $stub = $list[0]->[0];
-my $num_links = $list[0]->[1];
+       This program is free software; you can redistribute it and/or modify it
+       under the same terms as Perl itself.
 
-print "Most wanted stub: $stub with $num_links links\n";
-  
-COPYRIGHT AND LICENCE
-
-Copyright (C) 2005 Tyler Riddle
-
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.

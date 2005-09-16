@@ -1,4 +1,5 @@
 pages_test.xml
+links_test.sql
 Changes
 MANIFEST
 META.yml # Will be created by "make dist"
@@ -9,3 +10,4 @@ t/00-load.t
 t/pod-coverage.t
 t/pod.t
 t/pages.t
+t/links.t
