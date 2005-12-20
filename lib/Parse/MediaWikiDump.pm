@@ -1,15 +1,24 @@
-our $VERSION = '0.22';
+our $VERSION = '0.24';
 #the POD is at the end of this file
-#avoid shift - it is computationally more expensive than pop
+#avoid shift() - it is computationally more expensive than pop
 #and shifting values for subroutine input should be avoided in
 #any subroutines that get called often, like the handlers
 
 package Parse::MediaWikiDump::Pages;
 
+#This parser works by placing all of the start, text, and end events into
+#a buffer as they come out of XML::Parser. On each call to page() the function
+#checks for a complete article in the buffer and calls for XML::Parser to add
+#more tokens if a complete article is not found. Once a complete article is 
+#found it is removed from the buffer, parsed, and an instance of the page
+#object is returned. 
+
 use strict;
 use warnings;
 use XML::Parser;
 
+#tokens in the buffer are an array ref with the 0th element specifying
+#its type; these are the constants for those types. 
 use constant T_START => 1;
 use constant T_END => 2;
 use constant T_TEXT => 3;
@@ -22,7 +31,6 @@ sub new {
 	bless($self, $class);
 
 	$$self{PARSER} = XML::Parser->new(ProtocolEncoding => 'UTF-8');
-#	$$self{PARSER} = XML::Parser->new();
 	$$self{PARSER}->setHandlers('Start', \&start_handler,
 				    'End', \&end_handler,
 				    'Char', \&char_handler);
@@ -44,12 +52,17 @@ sub page {
 	my $offset;
 	my @page;
 
+	#look through the contents of our buffer for a complete article; fill
+	#the buffer with more data if an entire article is not there
 	while(1) {
 		$offset = $self->search_buffer([T_END, 'page']);
 		last if $offset != -1;
+
+		#indicates EOF
 		return undef unless $self->parse_more;
 	}
 
+	#remove the entire page from the buffer
 	@page = splice(@$buffer, 0, $offset + 1);
 
 	if (! token_compare($page[0], [T_START, 'page'])) {
@@ -59,13 +72,7 @@ sub page {
 
 	my $data = $self->parse_page(\@page);
 
-	return Parse::MediaWikiDump::page->new($data);
-}
-
-sub current_byte {
-	my $self = shift;
-
-	return $$self{BYTE};
+	return Parse::MediaWikiDump::page->new($data, $$self{CATEGORY_ANCHOR});
 }
 
 sub dump {
@@ -135,6 +142,12 @@ sub namespaces {
 	my $self = shift;
 	return $$self{HEAD}{namespaces};
 }
+
+sub current_byte {
+	my $self = shift;
+	return $$self{BYTE};
+}
+
 #private functions with OO interface
 sub open {
 	my $self = shift;
@@ -156,6 +169,7 @@ sub init {
 	my $offset;
 	my @head;
 
+	#parse more XML until the entire siteinfo section is in the buffer
 	while(1) {
 		die "could not init" unless $self->parse_more;
 
@@ -164,6 +178,7 @@ sub init {
 		last if $offset != -1;
 	}
 
+	#pull the siteinfo section out of the buffer
 	@head = splice(@{$$self{BUFFER}}, 0, $offset + 1);
 
 	$self->parse_head(\@head);
@@ -171,6 +186,7 @@ sub init {
 	return 1;
 }
 
+#feed data into expat and have it put more tokens onto the buffer
 sub parse_more {
 	my ($self) = @_;
 	my $buf;
@@ -196,6 +212,7 @@ sub parse_more {
 	return 1;
 }
 
+#searches through a buffer for a specified token
 sub search_buffer {
 	my ($self, $search, $list) = @_;
 
@@ -351,6 +368,23 @@ sub parse_head {
 	}
 
 	$$self{HEAD} = \%data;
+
+	#locate the anchor that indicates what looks like a link is really a 
+	#category assignment ([[foo]] vs [[Category:foo]])
+	#fix for bug #16616
+	foreach my $ns (@{$data{namespaces}}) {
+		#namespace 14 is the category namespace
+		if ($$ns[0] == 14) {
+			$$self{CATEGORY_ANCHOR} = $$ns[1];
+			last;
+		}
+	}
+
+	if (! defined($$self{CATEGORY_ANCHOR})) {
+		die "Could not locate category indicator in namespace definitions";
+	}
+
+	return 1;
 }
 
 sub parse_page {
@@ -531,7 +565,7 @@ sub parse_page {
 
 				if ($$token[0] != T_TEXT) {
 					$self->dump($buffer);
-					die "$i: expected TEXT; got " . token2text($token);
+					die "$i: expecting TEXT; got " . token2text($token);
 				}
 
 				$data{username} = ${$$token[1]};
@@ -542,11 +576,12 @@ sub parse_page {
 					$self->dump($buffer);
 					die "$i: expected </username>; got " . token2text($token);
 				}
+
 			} elsif (token_compare($token, [T_START, 'id'])) {
 				$token = $$buffer[++$i];
 				
 				if ($$token[0] != T_TEXT) {
-					$self->dump;
+					$self->dump($buffer);
 					die "$i: expecting TEXT; got " . token2text($token);
 				}
 
@@ -629,6 +664,13 @@ sub char_handler {
 	} elsif ($$curent[0] == T_START) {
 		my $ignore_ws_only = 1;
 
+		#work around for bug #16583 - All spaces is a possible username
+		# at least if done via unicode. Force white space preservation 
+		#for now. 
+		if ($$curent[1] eq 'username') {
+			$ignore_ws_only = 0;
+		}
+
 		if (defined($$curent[2]->{'xml:space'}) &&
 			($$curent[2]->{'xml:space'} eq 'preserve')) {
 				$ignore_ws_only = 0;
@@ -650,14 +692,14 @@ use strict;
 use warnings;
 
 sub new {
-	my $class = shift;
-	my $data = shift;
+	my ($class, $data, $category_anchor) = @_; 
 	my $self = {};
 
 	bless($self, $class);
 
 	$$self{DATA} = $data;
 	$$self{CACHE} = {};
+	$$self{CATEGORY_ANCHOR} = $category_anchor;
 
 	return $self;
 }
@@ -680,13 +722,14 @@ sub namespace {
 
 sub categories {
 	my $self = shift;
+	my $anchor = $$self{CATEGORY_ANCHOR};
 
 	return $$self{CACHE}{categories} if defined($$self{CACHE}{categories});
 
 	my $text = $$self{DATA}{text};
 	my @cats;
 	
-	while($$text =~ m/\[\[category:\s*([^\]]+)\]\]/gi) {
+	while($$text =~ m/\[\[$anchor:\s*([^\]]+)\]\]/gi) {
 		my $buf = $1;
 
 		#deal with the pipe trick
@@ -914,6 +957,7 @@ Parse::MediaWikiDump - Tools to process MediaWiki dump files
   $page->redirect;
   $page->categories;
   $page->title;
+  $page->namespace;
   $page->id;
   $page->revision_id;
   $page->timestamp;
@@ -1027,6 +1071,11 @@ The following methods are available:
 =item $page->id
 
 =item $page->title
+
+=item $page->namespace
+
+Returns an empty string (such as '') for the main namespace or a string 
+containing the name of the namespace.
 
 =item $page->text
 
@@ -1308,7 +1357,7 @@ the most recent English Wikipedia dump file: July 13, 2005.
 
 =head1 AUTHOR
 
-This module was created and documented by Tyler Riddle E<lt>triddle@gmail.orgE<gt>. 
+This module was created and documented by Tyler Riddle E<lt>triddle@gmail.comE<gt>. 
 
 =head1 BUGS
 

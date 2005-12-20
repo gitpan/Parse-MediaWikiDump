@@ -1,5 +1,18 @@
 Revision history for Parse-MediaWikiDump
 
+0.24	December 19, 2005
+	* Fixed bug #16616 - the category method only works properly on English
+	  language dump files. 
+
+0.23	December 19, 2005
+	* Fixed email address for author.
+	* Fixed omission of namespace method for pages objects in the 
+	  documentation.
+ 	* Added limitations section to README.
+	* Fixed http://rt.cpan.org bug #16583 - Module dies when parsing 
+	  the 20051211 German Wikipedia dump. 
+	* Added some comments to the source code.
+
 0.22	September 15, 2005
 	* Created some new and more comprehensive examples.
 	* Parse::MediaWikiDump::Pages now dies with a specific error 
