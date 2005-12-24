@@ -11,3 +11,5 @@ t/pod-coverage.t
 t/pod.t
 t/pages.t
 t/links.t
+t/pages-compat.t
+t/links-compat.t

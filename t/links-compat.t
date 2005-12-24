@@ -12,7 +12,7 @@ my $links = Parse::MediaWikiDump::Links->new($file);
 my $sum;
 my $last_link;
 
-while(my $link = $links->next) {
+while(my $link = $links->link) {
 	$sum += $link->from;
 	$last_link = $link;
 }

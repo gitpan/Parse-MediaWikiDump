@@ -1,4 +1,4 @@
-our $VERSION = '0.24';
+our $VERSION = '0.30';
 #the POD is at the end of this file
 #avoid shift() - it is computationally more expensive than pop
 #and shifting values for subroutine input should be avoided in
@@ -46,7 +46,7 @@ sub new {
 	return $self;
 }
 
-sub page {
+sub next {
 	my $self = shift;
 	my $buffer = $$self{BUFFER};
 	my $offset;
@@ -146,6 +146,14 @@ sub namespaces {
 sub current_byte {
 	my $self = shift;
 	return $$self{BYTE};
+}
+
+#depreciated backwards compatibility methods
+
+#replaced by next()
+sub page {
+	my $self = shift;
+	return $self->next(@_);
 }
 
 #private functions with OO interface
@@ -692,7 +700,7 @@ use strict;
 use warnings;
 
 sub new {
-	my ($class, $data, $category_anchor) = @_; 
+	my ($class, $data, $category_anchor, $case_setting) = @_; 
 	my $self = {};
 
 	bless($self, $class);
@@ -818,7 +826,7 @@ sub new {
 	return $self;
 }
 
-sub link {
+sub next {
 	my $self = shift;
 	my $buffer = $$self{BUFFER};
 	my $link;
@@ -891,6 +899,14 @@ sub init {
 	die "not a MediaWiki link dump file" unless $found;
 }
 
+#depreciated backwards compatibility methods
+
+#replaced by next()
+sub link {
+	my $self = shift;
+	$self->next(@_);
+}
+
 package Parse::MediaWikiDump::link;
 
 #you must pass in a fully populated link array reference
@@ -938,11 +954,11 @@ Parse::MediaWikiDump - Tools to process MediaWiki dump files
   $links = Parse::MediaWikiDump::Links->new($source);
 
   #get all the records from the dump files, one record at a time
-  while(defined($page = $pages->page)) {
+  while(defined($page = $pages->next)) {
     print "title '", $page->title, "' id ", $page->id, "\n";
   }
 
-  while(defined($link = $links->link)) {
+  while(defined($link = $links->next)) {
     print "link from ", $link->from, " to ", $link->to, "\n";
   }
 
@@ -1017,7 +1033,7 @@ After creation the folowing methods are avalable:
 
 =over 4
 
-=item $pages->page
+=item $pages->next
 
 Returns the next available record from the dump file if it is available,
 otherwise returns undef. Records returned are instances of 
@@ -1051,7 +1067,7 @@ namespace number and the second is the namespace name. In the case of namespace
 =head3 Parse::MediaWikiDump::page
 
 The Parse::MediaWikiDump::page object represents a distinct MediaWiki page, 
-article, module, what have you. These objects are returned by the page method
+article, module, what have you. These objects are returned by the next() method
 of a Parse::MediaWikiDump::Pages instance. The scalar returned is a reference
 to a hash that contains all the data of the page in a straightforward manor. 
 While it is possible to access this hash directly, and it involves less overhead
@@ -1113,10 +1129,10 @@ filehandle. For example:
   $links = Parse::MediaWikiDump::Links->new(\*FH);
 
 It is then possible to extract the links a single link at a time using the
-link method, which returns an instance of Parse::MediaWikiDump::link or undef
+next method, which returns an instance of Parse::MediaWikiDump::link or undef
 when there is no more data. For instance: 
 
-  while(defined($link = $links->link)) {
+  while(defined($link = $links->next)) {
     print 'from ', $link->from, ' to ', $link->to, "\n";
   }
 
@@ -1165,7 +1181,7 @@ The numerical id of the namespace the link points to.
   
   $title = case_fixer($title);
   
-  while(my $page = $dump->page) {
+  while(my $page = $dump->next) {
     if ($page->title eq $title) {
       print STDERR "Located text for $title\n";
       my $text = $page->text;
@@ -1229,7 +1245,7 @@ The numerical id of the namespace the link points to.
   
   print STDERR "Analyzing articles:\n";
   
-  while(defined($page = $pages->page)) {
+  while(defined($page = $pages->next)) {
     update_ui() if ++$artcount % 500 == 0;
   
     #main namespace only

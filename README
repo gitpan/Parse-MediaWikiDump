@@ -6,6 +6,10 @@ http://download.wikimedia.org/wikipedia/en/; the package requires XML::Parser.
 Using this software it is nearly trivial to get access to the information in 
 supported dump files.
 
+Currently the following dump files are supported:
+  * Current page dumps for all languages
+  * Current links dumps for all languages
+
 INSTALLATION
 
 To install this module, run the following commands:
@@ -17,8 +21,8 @@ To install this module, run the following commands:
 
 LIMITATIONS
 
-Parse::MediaWikiDump currently can not safely handle the full page dumps (a 
-dump where each page have more than one revision). In this instance 
+Parse::MediaWikiDump currently can not properly handle the full page dumps (a 
+dump where each page has more than one revision). In this instance 
 Parse::MediaWikiDump will abort processing of the archive. 
 
 Parse::MediaWikiDump is not as fast as it could be but it is faster than using
@@ -51,7 +55,7 @@ if ($dump->case ne 'first-letter') {
 $title = case_fixer($title);
 
 #iterate over the entire dump file, article by article
-while(my $page = $dump->page) {
+while(my $page = $dump->next) {
   if ($page->title eq $title) {
     print STDERR "Located text for $title\n";
     my $text = $page->text;

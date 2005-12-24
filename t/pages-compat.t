@@ -15,7 +15,7 @@ test_all($fh);
 
 sub test_all {
 	my $pages = Parse::MediaWikiDump::Pages->new(shift);
-	my $page = $pages->next;
+	my $page = $pages->page;
 	my $text = $page->text;
 
 	ok($pages->sitename eq 'Sitename Test Value');

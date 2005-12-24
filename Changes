@@ -1,5 +1,12 @@
 Revision history for Parse-MediaWikiDump
 
+0.30	December 23, 2005
+	* the Pages and Links class now both use a method named next() to get
+ 	  the next record. The old link() and page() methods are retained for
+	  now but should be migrated away from as soon as is convenient. 
+ 	* Added list of dump files that this module can process to the README
+	  file.
+
 0.24	December 19, 2005
 	* Fixed bug #16616 - the category method only works properly on English
 	  language dump files. 
