@@ -1,5 +1,11 @@
 Revision history for Parse-MediaWikiDump
 
+0.31	Jan 10, 2006
+	* Fix bug 16981 - Parse::MediaWikiDump::page->redirect does not work
+	  with redirects that have a : in them.
+ 	* Fix bug 16981 part two: title with a non-breaking space in it would
+	  come through as undefined.
+
 0.30	December 23, 2005
 	* the Pages and Links class now both use a method named next() to get
  	  the next record. The old link() and page() methods are retained for

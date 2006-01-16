@@ -1,4 +1,4 @@
-our $VERSION = '0.30';
+our $VERSION = '0.31';
 #the POD is at the end of this file
 #avoid shift() - it is computationally more expensive than pop
 #and shifting values for subroutine input should be avoided in
@@ -75,6 +75,7 @@ sub next {
 	return Parse::MediaWikiDump::page->new($data, $$self{CATEGORY_ANCHOR});
 }
 
+#outputs a nicely formated representation of the tokens on the buffer specified
 sub dump {
 	my $self = shift;
 	my $buffer = shift || $$self{BUFFER};
@@ -395,6 +396,7 @@ sub parse_head {
 	return 1;
 }
 
+#this function is very frightning =)
 sub parse_page {
 	my $self = shift;
 	my $buffer = shift;
@@ -685,7 +687,8 @@ sub char_handler {
 		}
 
 		if ($ignore_ws_only) {
-			return 1 if $chars =~ m/^\s+$/m;
+			#non-breaking spaces are not whitespace in XML
+			return 1 if $chars =~ m/^[ \t\r\n]+$/m;
 		}
 
 		push(@$buffer, [T_TEXT, \$chars]);
@@ -758,7 +761,7 @@ sub redirect {
 
 	return $$self{CACHE}{redirect} if exists($$self{CACHE}{redirect});
 
-	if ($$text =~ m/^#redirect\s*\[\[([^\]]*)\]\]/i) {
+	if ($$text =~ m/^#redirect\s*:?\s*\[\[([^\]]*)\]\]/i) {
 		$$self{CACHE}{redirect} = $1;
 		return $1;
 	} else {
@@ -1343,7 +1346,7 @@ The numerical id of the namespace the link points to.
 Currently the full page dump files (such as 20050909_pages_full.xml.gz) 
 are not supported.
 
-=item Optomization 
+=item Optimization
 
 It would be nice to increase the processing speed of the XML files. Current
 ideas:
@@ -1354,7 +1357,7 @@ ideas:
 
 Currently the base types for the majority of the classes are hashes. The 
 majority of these could be changed to arrays and numerical constants instead
-of using hashesh. 
+of using hashes. 
 
 =item Stackless parsing
 
@@ -1363,11 +1366,6 @@ beter to move to a stackless system where the XML parser is given a new set
 of callbacks to use when it encounters each specific token.
 
 =back
-
-=item Testing
-
-This software has received only light testing consisting of multiple runs over
-the most recent English Wikipedia dump file: July 13, 2005. 
 
 =back
 
