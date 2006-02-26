@@ -1,4 +1,5 @@
-our $VERSION = '0.31';
+package Parse::MediaWikiDump;
+our $VERSION = '0.32';
 #the POD is at the end of this file
 #avoid shift() - it is computationally more expensive than pop
 #and shifting values for subroutine input should be avoided in

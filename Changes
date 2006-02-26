@@ -1,5 +1,10 @@
 Revision history for Parse-MediaWikiDump
 
+0.32	Feb 25, 2006
+	* Added a line to create a package named Parse::MediaWikiDump so
+	  the module will get listed on CPAN search and the cpan command
+	  line tool.
+
 0.31	Jan 10, 2006
 	* Fix bug 16981 - Parse::MediaWikiDump::page->redirect does not work
 	  with redirects that have a : in them.
