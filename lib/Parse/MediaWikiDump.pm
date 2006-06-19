@@ -1,5 +1,5 @@
 package Parse::MediaWikiDump;
-our $VERSION = '0.32';
+our $VERSION = '0.33';
 #the POD is at the end of this file
 #avoid shift() - it is computationally more expensive than pop
 #and shifting values for subroutine input should be avoided in
@@ -150,6 +150,16 @@ sub current_byte {
 	return $$self{BYTE};
 }
 
+sub size {
+	my $self = shift;
+	
+	return undef unless defined $$self{SOURCE_FILE};
+
+	my @stat = stat($$self{SOURCE_FILE});
+
+	return $stat[7];
+}
+
 #depreciated backwards compatibility methods
 
 #replaced by next()
@@ -165,8 +175,12 @@ sub open {
 
 	if (ref($source) eq 'GLOB') {
 		$$self{SOURCE} = $source;
-	} elsif (! open($$self{SOURCE}, $source)) {
-		die "could not open $source: $!";
+	} else {
+		if (! open($$self{SOURCE}, $source)) {
+			die "could not open $source: $!";
+		}
+
+		$$self{SOURCE_FILE} = $source;
 	}
 
 	binmode($$self{SOURCE}, ':utf8');
@@ -972,6 +986,8 @@ Parse::MediaWikiDump - Tools to process MediaWiki dump files
   $pages->generator;
   $pages->case;
   $pages->namespaces;
+  $pages->current_byte;
+  $pages->size;
 
   #information about a page record
   $page->redirect;
@@ -1064,7 +1080,15 @@ Returns the case-sensitivity configuration of the instance.
 Returns an array reference to the list of namespaces in the instance. Each
 namespace is stored as an array reference which has two items; the first is the
 namespace number and the second is the namespace name. In the case of namespace
-0 the text stored for the name is ''
+0 the text stored for the name is ''.
+
+=item $pages->current_byte
+
+Returns the number of bytes parsed so far.
+
+=item $pages->size
+
+Returns the size of the dump file in bytes.
 
 =back
 

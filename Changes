@@ -1,4 +1,6 @@
 Revision history for Parse-MediaWikiDump
+0.33	Jun 18, 2006
+	* Added current_byte and size methods to page dumper.
 
 0.32	Feb 25, 2006
 	* Added a line to create a package named Parse::MediaWikiDump so
