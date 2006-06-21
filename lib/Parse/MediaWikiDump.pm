@@ -1,5 +1,5 @@
 package Parse::MediaWikiDump;
-our $VERSION = '0.33';
+our $VERSION = '0.40';
 #the POD is at the end of this file
 #avoid shift() - it is computationally more expensive than pop
 #and shifting values for subroutine input should be avoided in
@@ -20,9 +20,6 @@ use XML::Parser;
 
 #tokens in the buffer are an array ref with the 0th element specifying
 #its type; these are the constants for those types. 
-use constant T_START => 1;
-use constant T_END => 2;
-use constant T_TEXT => 3;
 
 sub new {
 	my $class = shift;
@@ -33,13 +30,13 @@ sub new {
 
 	$$self{PARSER} = XML::Parser->new(ProtocolEncoding => 'UTF-8');
 	$$self{PARSER}->setHandlers('Start', \&start_handler,
-				    'End', \&end_handler,
-				    'Char', \&char_handler);
+				    'End', \&end_handler);
         $$self{EXPAT} = $$self{PARSER}->parse_start(state => $self);
 	$$self{BUFFER} = []; 
 	$$self{CHUNK_SIZE} = 32768;
 	$$self{BUF_LIMIT} = 10000;
 	$$self{BYTE} = 0;
+	$$self{GOOD_TAGS} = make_good_tags();
 
 	$self->open($source);
 	$self->init;
@@ -56,7 +53,7 @@ sub next {
 	#look through the contents of our buffer for a complete article; fill
 	#the buffer with more data if an entire article is not there
 	while(1) {
-		$offset = $self->search_buffer([T_END, 'page']);
+		$offset = $self->search_buffer('/page');
 		last if $offset != -1;
 
 		#indicates EOF
@@ -66,7 +63,7 @@ sub next {
 	#remove the entire page from the buffer
 	@page = splice(@$buffer, 0, $offset + 1);
 
-	if (! token_compare($page[0], [T_START, 'page'])) {
+	if ($page[0][0] ne 'page') {
 		$self->dump($buffer);
 		die "expected <page>; got " . token2text($page[0]);
 	}
@@ -87,10 +84,10 @@ sub dump {
 
 		print STDERR "$i ";
 
-		if ($$token[0] == T_START) {
-			my $attr = $$token[2];
+		if (substr($$token[0], 0, 1) ne '/') {
+			my $attr = $$token[1];
 			print STDERR "  " x $offset;
-			print STDERR "START $$token[1] ";
+			print STDERR "START $$token[0] ";
 
 			foreach my $key (sort(keys(%$attr))) {
 				print STDERR "$key=\"$$attr{$key}\" ";
@@ -98,12 +95,12 @@ sub dump {
 
 			print STDERR "\n";
 			$offset++;
-		} elsif ($$token[0] == T_END) {
+		} elsif (ref $token eq 'ARRAY') {
 			$offset--;
 			print STDERR "  " x $offset;
-			print STDERR "END $$token[1]\n";
-		} elsif ($$token[0] == T_TEXT) {
-			my $ref = $$token[1];
+			print STDERR "END $$token[0]\n";
+		} elsif (ref $token eq 'SCALAR') {
+			my $ref = $token;
 			print STDERR "  " x $offset;
 			print STDERR "TEXT ";
 
@@ -197,7 +194,7 @@ sub init {
 	while(1) {
 		die "could not init" unless $self->parse_more;
 
-		$offset = $self->search_buffer([T_END, 'siteinfo']);
+		$offset = $self->search_buffer('/siteinfo');
 
 		last if $offset != -1;
 	}
@@ -245,7 +242,7 @@ sub search_buffer {
 	return -1 if scalar(@$list) == 0;
 
 	foreach my $i (0 .. $#$list) {
-		return $i if token_compare($$list[$i], $search);
+		return $i if ref $$list[$i] eq 'ARRAY' && $list->[$i][0] eq $search;
 	}
 
 	return -1;
@@ -264,86 +261,86 @@ sub parse_head {
 		if ($state eq 'start') {
 			my $version;
 			die "$i: expected <mediawiki> got " . token2text($token) unless
-				token_compare($token, [T_START, 'mediawiki']);
+				$$token[0] eq 'mediawiki';
 
 			die "$i: version is a required attribute" unless
-				defined($version = $$token[2]->{version});
+				defined($version = $$token[1]->{version});
 
 			die "$i: version $version unsupported" unless $version eq '0.3';
 
 			$token = $$buffer[++$i];
 
 			die "$i: expected <siteinfo> got " . token2text($token) unless
-				token_compare($token, [T_START, 'siteinfo']);
+				$$token[0] eq 'siteinfo';
 
 			$state = 'in_siteinfo';
 		} elsif ($state eq 'in_siteinfo') {
-			if (token_compare($token, [T_START, 'namespaces'])) {
+			if ($$token[0] eq 'namespaces') {
 				$state = 'in_namespaces';
 				next;
-			} elsif (token_compare($token, [T_END, 'siteinfo'])) {
+			} elsif ($$token[0] eq '/siteinfo') {
 				last;
-			} elsif (token_compare($token, [T_START, 'sitename'])) {
+			} elsif ($$token[0] eq 'sitename') {
 				$token = $$buffer[++$i];
 
-				if ($$token[0] != T_TEXT) {
+				if (ref $token ne 'SCALAR') {
 					die "$i: expected TEXT but got " . token2text($token);
 				}
 
-				$data{sitename} = ${$$token[1]};
+				$data{sitename} = $$token;
 
 				$token = $$buffer[++$i];
 
-				if (! token_compare($token, [T_END, 'sitename'])) {
+				if ($$token[0] ne '/sitename') {
 					die "$i: expected </sitename> but got " . token2text($token);
 				}
-			} elsif (token_compare($token, [T_START, 'base'])) {
+			} elsif ($$token[0] eq 'base') {
 				$token = $$buffer[++$i];
 
-				if ($$token[0] != T_TEXT) {
+				if (ref $token ne 'SCALAR') {
 					$self->dump($buffer);
 					die "$i: expected TEXT but got " . token2text($token);
 				}
 
-				$data{base} = ${$$token[1]};
+				$data{base} = $$token;
 
 				$token = $$buffer[++$i];
 
-				if (! token_compare($token, [T_END, 'base'])) {
+				if ($$token[0] ne '/base') {
 					$self->dump($buffer);
 					die "$i: expected </base> but got " . token2text($token);
 				}
 
-			} elsif (token_compare($token, [T_START, 'generator'])) {
+			} elsif ($$token[0] eq 'generator') {
 				$token = $$buffer[++$i];
 
-				if ($$token[0] != T_TEXT) {
+				if (ref $token ne 'SCALAR') {
 					$self->dump($buffer);
 					die "$i: expected TEXT but got " . token2text($token);
 				}
 
-				$data{generator} = ${$$token[1]};
+				$data{generator} = $$token;
 
 				$token = $$buffer[++$i];
 
-				if (! token_compare($token, [T_END, 'generator'])) {
+				if ($$token[0] ne '/generator') {
 					$self->dump($buffer);
 					die "$i: expected </generator> but got " . token2text($token);
 				}
 
-			} elsif (token_compare($token, [T_START, 'case'])) {
+			} elsif ($$token[0] eq 'case') {
 				$token = $$buffer[++$i];
 
-				if ($$token[0] != T_TEXT) {
+				if (ref $token ne 'SCALAR') {
 					$self->dump($buffer);
 					die "$i: expected </case> but got " . token2text($token);
 				}
 
-				$data{case} = ${$$token[1]};
+				$data{case} = $$token;
 
 				$token = $$buffer[++$i];
 
-				if (! token_compare($token, [T_END, 'case'])) {
+				if ($$token[0] ne '/case') {
 					$self->dump($buffer);
 					die "$i: expected </case> but got " . token2text($token);
 				}
@@ -353,24 +350,24 @@ sub parse_head {
 			my $key;
 			my $name;
 
-			if (token_compare($token, [T_END, 'namespaces'])) {
+			if ($$token[0] eq '/namespaces') {
 				$state = 'in_siteinfo';
 				next;
 			} 
 
-			if (! token_compare($token, [T_START, 'namespace'])) {
+			if ($$token[0] ne 'namespace') {
 				die "$i: expected <namespace> or </namespaces>; got " . token2text($token);
 			}
 
 			die "$i: key is a required attribute" unless
-				defined($key = $$token[2]->{key});
+				defined($key = $$token[1]->{key});
 
 			$token = $$buffer[++$i];
 
 			#the default namespace has no text associated with it
-			if ($$token[0] == T_TEXT) {
-				$name = ${$$token[1]};
-			} elsif (token_compare($token, [T_END, 'namespace'])) {
+			if (ref $token eq 'SCALAR') {
+				$name = $$token;
+			} elsif ($$token[0] eq '/namespace') {
 				$name = '';
 				$i--; #move back one for below
 			} else {
@@ -381,7 +378,7 @@ sub parse_head {
 
 			$token = $$buffer[++$i];
 
-			if (! token_compare($token, [T_END, 'namespace'])) {
+			if ($$token[0] ne '/namespace') {
 				$self->dump($buffer);
 				die "$i: expected </namespace> but got " . token2text($token);
 			}
@@ -421,59 +418,61 @@ sub parse_page {
 	for (my $i = 0; $i <= $#$buffer; $i++) {
 		my $token = $$buffer[$i];
 
+
 		if ($state eq 'start') {
-			if (! token_compare($token, [T_START, 'page'])) {
+			if ($$token[0] ne 'page') {
 				$self->dump($buffer);
 				die "$i: expected <page>; got " . token2text($token);
 			}
 
 			$state = 'in_page';
 		} elsif ($state eq 'in_page') {
-			if (token_compare($token, [T_START, 'revision'])) {
+			next unless ref $token eq 'ARRAY';
+			if ($$token[0] eq 'revision') {
 				$state = 'in_revision';
 				next;
-			} elsif (token_compare($token, [T_END, 'page'])) {
+			} elsif ($$token[0] eq '/page') {
 				last;
-			} elsif (token_compare($token, [T_START, 'title'])) {
+			} elsif ($$token[0] eq 'title') {
 				$token = $$buffer[++$i];
 
-				if (token_compare($token, [T_END, 'title'])) {
+				if (ref $token eq 'ARRAY' && $$token[0] eq '/title') {
 					$data{title} = '';
 					next;
 				}
 
-				if ($$token[0] != T_TEXT) {
+				if (ref $token ne 'SCALAR') {
 					$self->dump($buffer);
 					die "$i: expected TEXT; got " . token2text($token);
 				}
 
-				$data{title} = ${$$token[1]};
+				$data{title} = $$token;
 
 				$token = $$buffer[++$i];
 
-				if (! token_compare($token, [T_END, 'title'])) {
+				if ($$token[0] ne '/title') {
 					$self->dump($buffer);
 					die "$i: expected </title>; got " . token2text($token);
 				}
-			} elsif (token_compare($token, [T_START, 'id'])) {
+			} elsif ($$token[0] eq 'id') {
 				$token = $$buffer[++$i];
 	
-				if ($$token[0] != T_TEXT) {
+				if (ref $token ne 'SCALAR') {
 					$self->dump($buffer);
 					die "$i: expected TEXT; got " . token2text($token);
 				}
 
-				$data{id} = ${$$token[1]};
+				$data{id} = $$token;
 
 				$token = $$buffer[++$i];
 
-				if (! token_compare($token, [T_END, 'id'])) {
+				if ($$token[0] ne '/id') {
 					$self->dump($buffer);
 					die "$i: expected </id>; got " . token2text($token);
 				}
 			}
 		} elsif ($state eq 'in_revision') {
-			if (token_compare($token, [T_END, 'revision'])) {
+			if ($$token[0] eq '/revision') {
 				#If a comprehensive dump file is parsed
 				#it can cause uncontrolled stack growth and the
 				#parser only returns one revision out of
@@ -486,95 +485,95 @@ sub parse_page {
 				#the index
 				$token = $$buffer[$i + 1];
 
-				if (token_compare($token, [T_START, 'revision'])) {
+				if ($$token[0] eq 'revision') {
 					die "unable to properly parse comprehensive dump files";
 				}
 
 				$state = 'in_page';
 				next;	
-			} elsif (token_compare($token, [T_START, 'contributor'])) {
+			} elsif ($$token[0] eq 'contributor') {
 				$state = 'in_contributor';
 				next;
-			} elsif (token_compare($token, [T_START, 'id'])) {
+			} elsif ($$token[0] eq 'id') {
 				$token = $$buffer[++$i];
 	
-				if ($$token[0] != T_TEXT) {
+				if (ref $token ne 'SCALAR') {
 					$self->dump($buffer);
 					die "$i: expected TEXT; got " . token2text($token);
 				}
 
-				$data{revision_id} = ${$$token[1]};
+				$data{revision_id} = $$token;
 
 				$token = $$buffer[++$i];
 
-				if (! token_compare($token, [T_END, 'id'])) {
+				if ($$token[0] ne '/id') {
 					$self->dump($buffer);
 					die "$i: expected </id>; got " . token2text($token);
 				}
 
-			} elsif (token_compare($token, [T_START, 'timestamp'])) {
+			} elsif ($$token[0] eq 'timestamp') {
 				$token = $$buffer[++$i];
 
-				if ($$token[0] != T_TEXT) {
+				if (ref $token ne 'SCALAR') {
 					$self->dump($buffer);
 					die "$i: expected TEXT; got " . token2text($token);
 				}
 
-				$data{timestamp} = ${$$token[1]};
+				$data{timestamp} = $$token;
 
 				$token = $$buffer[++$i];
 
-				if (! token_compare($token, [T_END, 'timestamp'])) {
+				if ($$token[0] ne '/timestamp') {
 					$self->dump($buffer);
 					die "$i: expected </timestamp>; got " . token2text($token);
 				}
-			} elsif (token_compare($token, [T_START, 'minor'])) {
+			} elsif ($$token[0] eq 'minor') {
 				$data{minor} = 1;
 				$token = $$buffer[++$i];
 
-				if (! token_compare($token, [T_END, 'minor'])) {
+				if ($$token[0] ne '/minor') {
 					$self->dump($buffer);
 					die "$i: expected </minor>; got " . token2text($token);
 				}
-			} elsif (token_compare($token, [T_START, 'comment'])) {
+			} elsif ($$token[0] eq 'comment') {
 				$token = $$buffer[++$i];
 
 				#account for possible null-text 
-				if (token_compare($token, [T_END, 'comment'])) {
+				if (ref $token eq 'ARRAY' && $$token[0] eq '/comment') {
 					$data{comment} = '';
 					next;
 				}
 
-				if ($$token[0] != T_TEXT) {
+				if (ref $token ne 'SCALAR') {
 					$self->dump($buffer);
 					die "$i: expected TEXT; got " . token2text($token);
 				}
 
-				$data{comment} = ${$$token[1]};
+				$data{comment} = $$token;
 
 				$token = $$buffer[++$i];
 
-				if (! token_compare($token, [T_END, 'comment'])) {
+				if ($$token[0] ne '/comment') {
 					$self->dump($buffer);
 					die "$i: expected </comment>; got " . token2text($token);
 				}
 
-			} elsif (token_compare($token, [T_START, 'text'])) {
+			} elsif ($$token[0] eq 'text') {
 				my $token = $$buffer[++$i];
 
-				if (token_compare($token, [T_END, 'text'])) {
+				if (ref $token eq 'ARRAY' && $$token[0] eq '/text') {
 					${$data{text}} = '';
 					next;
-				} elsif ($$token[0] != T_TEXT) {
+				} elsif (ref $token ne 'SCALAR') {
 					$self->dump($buffer);
 					die "$i: expected TEXT; got " . token2text($token);
 				}
 
-				$data{text} = $$token[1];
+				$data{text} = $token;
 
 				$token = $$buffer[++$i];
 
-				if (! token_compare($token, [T_END, 'text'])) {
+				if ($$token[0] ne '/text') {
 					$self->dump($buffer);
 					die "$i: expected </text>; got " . token2text($token);
 				}
@@ -582,39 +581,40 @@ sub parse_page {
 			}
 
 		} elsif ($state eq 'in_contributor') {
-			if (token_compare($token, [T_END, 'contributor'])) {
+			next unless ref $token eq 'ARRAY';
+			if ($$token[0] eq '/contributor') {
 				$state = 'in_revision';
 				next;
-			} elsif (token_compare($token, [T_START, 'username'])) {
+			} elsif (ref $token eq 'ARRAY' && $$token[0] eq 'username') {
 				$token = $$buffer[++$i];
 
-				if ($$token[0] != T_TEXT) {
+				if (ref $token ne 'SCALAR') {
 					$self->dump($buffer);
 					die "$i: expecting TEXT; got " . token2text($token);
 				}
 
-				$data{username} = ${$$token[1]};
+				$data{username} = $$token;
 
 				$token = $$buffer[++$i];
 
-				if (! token_compare($token, [T_END, 'username'])) {
+				if ($$token[0] ne '/username') {
 					$self->dump($buffer);
 					die "$i: expected </username>; got " . token2text($token);
 				}
 
-			} elsif (token_compare($token, [T_START, 'id'])) {
+			} elsif ($$token[0] eq 'id') {
 				$token = $$buffer[++$i];
 				
-				if ($$token[0] != T_TEXT) {
+				if (ref $token ne 'SCALAR') {
 					$self->dump($buffer);
 					die "$i: expecting TEXT; got " . token2text($token);
 				}
 
-				$data{userid} = ${$$token[1]};
+				$data{userid} = $$token;
 
 				$token = $$buffer[++$i];
 
-				if (! token_compare($token, [T_END, 'id'])) {
+				if ($$token[0] ne '/id') {
 					$self->dump($buffer);
 					die "$i: expecting </id>; got " . token2text($token);
 				}
@@ -630,38 +630,57 @@ sub parse_page {
 }
 
 #private functions with out OO interface
+sub make_good_tags {
+	return {
+		sitename => 1,
+		base => 1,
+		generator => 1,
+		case => 1,
+		namespace => 1,
+		title => 1,
+		id => 1,
+		timestamp => 1,
+		username => 1,
+		comment => 1,
+		text => 1
+	};
+}
+
 sub token2text {
 	my $token = shift;
 
-	if ($$token[0] == T_START) {
-		return "<$$token[1]>";
-	} elsif ($$token[0] == T_END) {
-		return "</$$token[1]>";
-	} elsif ($$token[0] == T_TEXT) {
-		return "!text_token!";	
+	if (ref $token eq 'ARRAY') {
+		return "<$$token[0]>";
+	} elsif (ref $token eq 'SCALAR') {
+		return "!text_token!";
 	} else {
 		return "!unknown!";
 	}
 }
 
 #this function is where the majority of time is spent in this software
-sub token_compare {
-	my ($toke1, $toke2) = @_;
-
-	foreach my $i (0 .. $#$toke2) {
-		if ($$toke1[$i] ne $$toke2[$i]) {
-			return 0;
-		}
-	}
-
-	return 1;
-}
+#sub token_compare {
+#	my ($toke1, $toke2) = @_;
+#
+#	foreach my $i (0 .. $#$toke2) {
+#		if ($$toke1[$i] ne $$toke2[$i]) {
+#			return 0;
+#		}
+#	}
+#
+#	return 1;
+#}
 
 sub start_handler {
 	my ($p, $tag, %atts) = @_;	
 	my $self = $p->{state};
+	my $good_tags = $self->{GOOD_TAGS};
 
-	push(@{$$self{BUFFER}}, [T_START, $tag, \%atts]);
+	push @{ $self->{BUFFER} }, [$tag, \%atts];
+
+	if (defined($good_tags->{$tag})) {
+		$p->setHandlers(Char => \&char_handler);
+	}
 
 	return 1;
 }
@@ -670,8 +689,10 @@ sub end_handler {
 	my ($p, $tag) = @_;
 	my $self = $p->{state};
 
-	push(@{$$self{BUFFER}}, [T_END, $tag]);
+	push @{ $self->{BUFFER} }, ["/$tag"];
 
+	$p->setHandlers(Char => undef);
+	
 	return 1;
 }
 
@@ -679,34 +700,12 @@ sub char_handler {
 	my ($p, $chars) = @_;
 	my $self = $p->{state};
 	my $buffer = $$self{BUFFER};
-	my $curent = $$buffer[$#$buffer];
+	my $curent = $$buffer[-1];
 
-	if (! defined($curent)) {
- 		#skip any text not inside a container
-		return 1;
-	} elsif ($$curent[0] == T_TEXT) {
-		${$$curent[1]} .= $chars;
-	} elsif ($$curent[0] == T_START) {
-		my $ignore_ws_only = 1;
-
-		#work around for bug #16583 - All spaces is a possible username
-		# at least if done via unicode. Force white space preservation 
-		#for now. 
-		if ($$curent[1] eq 'username') {
-			$ignore_ws_only = 0;
-		}
-
-		if (defined($$curent[2]->{'xml:space'}) &&
-			($$curent[2]->{'xml:space'} eq 'preserve')) {
-				$ignore_ws_only = 0;
-		}
-
-		if ($ignore_ws_only) {
-			#non-breaking spaces are not whitespace in XML
-			return 1 if $chars =~ m/^[ \t\r\n]+$/m;
-		}
-
-		push(@$buffer, [T_TEXT, \$chars]);
+	if (ref $curent eq 'SCALAR') {
+		$$curent .= $chars;
+	} elsif (substr($$curent[0], 0, 1) ne '/') {
+		push(@$buffer, \$chars);
 	} 
 
 	return 1;
