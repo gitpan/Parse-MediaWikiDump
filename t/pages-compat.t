@@ -4,7 +4,7 @@ use Test::Simple tests => 22;
 use strict;
 use Parse::MediaWikiDump;
 
-my $file = 'pages_test.xml';
+my $file = 't/pages_test.xml';
 my $fh;
 
 test_all($file);

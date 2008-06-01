@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use Parse::MediaWikiDump;
 
-my $file = 'links_test.sql';
+my $file = 't/links_test.sql';
 
 my $links = Parse::MediaWikiDump::Links->new($file);
 

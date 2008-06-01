@@ -9,6 +9,7 @@ WriteMakefile(
     ABSTRACT_FROM       => 'lib/Parse/MediaWikiDump.pm',
     PL_FILES            => {},
     PREREQ_PM => {
+ 	'List::Util' => 0,
         'Test::More' => 0,
 	'XML::Parser' => 0,
     },

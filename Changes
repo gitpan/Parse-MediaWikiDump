@@ -1,6 +1,18 @@
 Revision history for Parse-MediaWikiDump
-0.40
-	Jun 21, 2006
+
+0.51	May 31, 2008
+	* Fix for bug 36255 "Parse::MediaWikiDump::page::namespace may return
+  	  a string which is not really a namespace" provided by Amir E. Aharoni.
+	* Moved test data into t/ and moved speed_test.pl into examples/
+	* Exceedingly complicated functions (parse_head() and parse_page()) are
+	  not funny. Added some comments on how to rectify that situation.
+	* Tightened up the tests a little bit.
+
+0.50	Jun 27, 2006
+	* Added category links parser.
+	* Removed all instances of shift() from the code.
+
+0.40	Jun 21, 2006
 	* Increased processing speed by around 40%!
 
 0.33	Jun 18, 2006

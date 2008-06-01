@@ -1,15 +1,15 @@
-pages_test.xml
-links_test.sql
 Changes
 MANIFEST
 META.yml # Will be created by "make dist"
 Makefile.PL
 README
+examples/speed_test
 lib/Parse/MediaWikiDump.pm
 t/00-load.t
-t/pod-coverage.t
-t/pod.t
 t/pages.t
 t/links.t
 t/pages-compat.t
 t/links-compat.t
+t/pages_test.xml
+t/links_test.sql
+TODO

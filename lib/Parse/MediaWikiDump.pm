@@ -1,9 +1,7 @@
 package Parse::MediaWikiDump;
-our $VERSION = '0.40';
+our $VERSION = '0.51';
+
 #the POD is at the end of this file
-#avoid shift() - it is computationally more expensive than pop
-#and shifting values for subroutine input should be avoided in
-#any subroutines that get called often, like the handlers
 
 package Parse::MediaWikiDump::Pages;
 
@@ -16,22 +14,22 @@ package Parse::MediaWikiDump::Pages;
 
 use strict;
 use warnings;
+use List::Util;
 use XML::Parser;
 
 #tokens in the buffer are an array ref with the 0th element specifying
 #its type; these are the constants for those types. 
 
 sub new {
-	my $class = shift;
-	my $source = shift;
+	my ($class, $source) = @_;
 	my $self = {};
 
 	bless($self, $class);
 
 	$$self{PARSER} = XML::Parser->new(ProtocolEncoding => 'UTF-8');
 	$$self{PARSER}->setHandlers('Start', \&start_handler,
-				    'End', \&end_handler);
-        $$self{EXPAT} = $$self{PARSER}->parse_start(state => $self);
+					'End', \&end_handler);
+		$$self{EXPAT} = $$self{PARSER}->parse_start(state => $self);
 	$$self{BUFFER} = []; 
 	$$self{CHUNK_SIZE} = 32768;
 	$$self{BUF_LIMIT} = 10000;
@@ -45,7 +43,7 @@ sub new {
 }
 
 sub next {
-	my $self = shift;
+	my ($self) = @_;
 	my $buffer = $$self{BUFFER};
 	my $offset;
 	my @page;
@@ -75,9 +73,12 @@ sub next {
 
 #outputs a nicely formated representation of the tokens on the buffer specified
 sub dump {
-	my $self = shift;
-	my $buffer = shift || $$self{BUFFER};
+	my ($self, $buffer) = @_;
 	my $offset = 0;
+
+	if (! defined($buffer)) {
+		$buffer = $$self{BUFFER};
+	}
 
 	foreach my $i (0 .. $#$buffer) {
 		my $token = $$buffer[$i];
@@ -118,37 +119,42 @@ sub dump {
 }
 
 sub sitename {
-	my $self = shift;
+	my ($self) = @_;
 	return $$self{HEAD}{sitename};
 }
 
 sub base {
-	my $self = shift;
+	my ($self) = @_;
 	return $$self{HEAD}{base};
 }
 
 sub generator {
-	my $self = shift;
+	my ($self) = @_;
 	return $$self{HEAD}{generator};
 }
 
 sub case {
-	my $self = shift;
+	my ($self) = @_;
 	return $$self{HEAD}{case};
 }
 
 sub namespaces {
-	my $self = shift;
+	my ($self) = @_;
 	return $$self{HEAD}{namespaces};
 }
 
-sub current_byte {
+sub namespaces_names {
 	my $self = shift;
+	return $$self{HEAD}{namespaces_names};
+}
+
+sub current_byte {
+	my ($self) = @_;
 	return $$self{BYTE};
 }
 
 sub size {
-	my $self = shift;
+	my ($self) = @_;
 	
 	return undef unless defined $$self{SOURCE_FILE};
 
@@ -161,14 +167,13 @@ sub size {
 
 #replaced by next()
 sub page {
-	my $self = shift;
+	my ($self) = @_;
 	return $self->next(@_);
 }
 
 #private functions with OO interface
 sub open {
-	my $self = shift;
-	my $source = shift;
+	my ($self, $source) = @_;
 
 	if (ref($source) eq 'GLOB') {
 		$$self{SOURCE} = $source;
@@ -186,7 +191,7 @@ sub open {
 }
 
 sub init {
-	my $self = shift;
+	my ($self) = @_;
 	my $offset;
 	my @head;
 
@@ -248,12 +253,16 @@ sub search_buffer {
 	return -1;
 }
 
-#this function is very frightning =)
+#this function is very frightning :-( 
+#a better alternative would be to have each part of the stack handled by a 
+#function that handles all the logic for that specific node in the tree
 sub parse_head {
-	my $self = shift;
-	my $buffer = shift;
+	my ($self, $buffer) = @_;
 	my $state = 'start';
-	my %data = (namespaces => []);
+	my %data = (
+		namespaces			=> [],
+		namespaces_names	=> [],
+	);
 
 	for (my $i = 0; $i <= $#$buffer; $i++) {
 		my $token = $$buffer[$i];
@@ -375,6 +384,7 @@ sub parse_head {
 			}
 
 			push(@{$data{namespaces}}, [$key, $name]);
+			push(@{$data{namespaces_names}}, $name);
 
 			$token = $$buffer[++$i];
 
@@ -408,10 +418,11 @@ sub parse_head {
 	return 1;
 }
 
-#this function is very frightning =)
+#this function is very frightning :-(
+#see the parse_head function comments for thoughts on improving these
+#awful functions
 sub parse_page {
-	my $self = shift;
-	my $buffer = shift;
+	my ($self, $buffer) = @_;
 	my %data;
 	my $state = 'start';
 
@@ -624,6 +635,18 @@ sub parse_page {
 		}
 	}
 
+	$data{namespace} = '';
+	# Many pages just have a : in the title, but it's not necessary
+	# a namespace designation.
+	if ($data{title} =~ m/^([^:]+)\:/) {
+		my $possible_namespace = $1;
+		if (List::Util::first { $_ eq $possible_namespace }
+			@{ $self->namespaces_names() })
+		{
+			$data{namespace} = $possible_namespace;
+		}
+	}
+
 	$data{minor} = 0 unless defined($data{minor});
 
 	return \%data;
@@ -647,7 +670,7 @@ sub make_good_tags {
 }
 
 sub token2text {
-	my $token = shift;
+	my ($token) = @_;
 
 	if (ref $token eq 'ARRAY') {
 		return "<$$token[0]>";
@@ -674,9 +697,9 @@ sub token2text {
 sub start_handler {
 	my ($p, $tag, %atts) = @_;	
 	my $self = $p->{state};
-	my $good_tags = $self->{GOOD_TAGS};
+	my $good_tags = $$self{GOOD_TAGS};
 
-	push @{ $self->{BUFFER} }, [$tag, \%atts];
+	push @{ $$self{BUFFER} }, [$tag, \%atts];
 
 	if (defined($good_tags->{$tag})) {
 		$p->setHandlers(Char => \&char_handler);
@@ -689,7 +712,7 @@ sub end_handler {
 	my ($p, $tag) = @_;
 	my $self = $p->{state};
 
-	push @{ $self->{BUFFER} }, ["/$tag"];
+	push @{ $$self{BUFFER} }, ["/$tag"];
 
 	$p->setHandlers(Char => undef);
 	
@@ -730,23 +753,13 @@ sub new {
 }
 
 sub namespace {
-	my $self = shift;
+	my ($self) = @_;
 
-	return $$self{CACHE}{namespace} if defined($$self{CACHE}{namespace});
-
-	my $title = $$self{DATA}{title};
-
-	if ($title =~ m/^([^:]+)\:/) {
-		$$self{CACHE}{namespace} = $1;
-		return $1;
-	} else {
-		$$self{CACHE}{namespace} = '';
-		return '';
-	}
+	return $$self{DATA}{namespace};
 }
 
 sub categories {
-	my $self = shift;
+	my ($self) = @_;
 	my $anchor = $$self{CATEGORY_ANCHOR};
 
 	return $$self{CACHE}{categories} if defined($$self{CACHE}{categories});
@@ -770,7 +783,7 @@ sub categories {
 }
 
 sub redirect {
-	my $self = shift;
+	my ($self) = @_;
 	my $text = $$self{DATA}{text};
 
 	return $$self{CACHE}{redirect} if exists($$self{CACHE}{redirect});
@@ -785,42 +798,42 @@ sub redirect {
 }
 
 sub title {
-	my $self = shift;
+	my ($self) = @_;
 	return $$self{DATA}{title};
 }
 
 sub id {
-	my $self = shift;
+	my ($self) = @_;
 	return $$self{DATA}{id};
 }
 
 sub revision_id {
-	my $self = shift;
+	my ($self) = @_;
 	return $$self{DATA}{revision_id};
 }
 
 sub timestamp {
-	my $self = shift;
+	my ($self) = @_;
 	return $$self{DATA}{timestamp};
 }
 
 sub username {
-	my $self = shift;
+	my ($self) = @_;
 	return $$self{DATA}{username};
 }
 
 sub userid {
-	my $self = shift;
+	my ($self) = @_;
 	return $$self{DATA}{userid};
 }
 
 sub minor {
-	my $self = shift;
+	my ($self) = @_;
 	return $$self{DATA}{minor};
 }
 
 sub text {
-	my $self = shift;
+	my ($self) = @_;
 	return $$self{DATA}{text};
 }
 
@@ -830,8 +843,7 @@ use strict;
 use warnings;
 
 sub new {
-	my $class = shift;
-	my $source = shift;
+	my ($class, $source) = @_;
 	my $self = {};
 	$$self{BUFFER} = [];
 
@@ -844,7 +856,7 @@ sub new {
 }
 
 sub next {
-	my $self = shift;
+	my ($self) = @_;
 	my $buffer = $$self{BUFFER};
 	my $link;
 
@@ -862,7 +874,7 @@ sub next {
 
 #private functions with OO interface
 sub parse_more {
-	my $self = shift;
+	my ($self) = @_;
 	my $source = $$self{SOURCE};
 	my $need_data = 1;
 	
@@ -886,8 +898,7 @@ sub parse_more {
 }
 
 sub open {
-	my $self = shift;
-	my $source = shift;
+	my ($self, $source) = @_;
 
 	if (ref($source) ne 'GLOB') {
 		die "could not open $source: $!" unless
@@ -902,7 +913,7 @@ sub open {
 }
 
 sub init {
-	my $self = shift;
+	my ($self) = @_;
 	my $source = $$self{SOURCE};
 	my $found = 0;
 	
@@ -920,7 +931,7 @@ sub init {
 
 #replaced by next()
 sub link {
-	my $self = shift;
+	my ($self) = @_;
 	$self->next(@_);
 }
 
@@ -928,8 +939,7 @@ package Parse::MediaWikiDump::link;
 
 #you must pass in a fully populated link array reference
 sub new {
-	my $class = shift;
-	my $self = shift;
+	my ($class, $self) = @_;
 
 	bless($self, $class);
 
@@ -937,21 +947,305 @@ sub new {
 }
 
 sub from {
-	my $self = shift;
+	my ($self) = @_;
 	return $$self[0];
 }
 
 sub namespace {
-	my $self = shift;
+	my ($self) = @_;
 	return $$self[1];
 }
 
 sub to {
-	my $self = shift;
+	my ($self) = @_;
 	return $$self[2];
 }
 
+package Parse::MediaWikiDump::CategoryLinks;
 
+use strict;
+use warnings;
+
+sub new {
+	my ($class, $source) = @_;
+	my $self = {};
+
+	$$self{BUFFER} = [];
+	$$self{BYTE} = 0;
+
+	bless($self, $class);
+
+	$self->open($source);
+	$self->init;
+
+	return $self;
+}
+
+sub next {
+	my ($self) = @_;
+	my $buffer = $$self{BUFFER};
+	my $link;
+
+	while(1) {
+		if (defined($link = pop(@$buffer))) {
+			last;
+		}
+
+		#signals end of input
+		return undef unless $self->parse_more;
+	}
+
+	return Parse::MediaWikiDump::category_link->new($link);
+}
+
+#private functions with OO interface
+sub parse_more {
+	my ($self) = @_;
+	my $source = $$self{SOURCE};
+	my $need_data = 1;
+	
+	while($need_data) {
+		my $line = <$source>;
+
+		last unless defined($line);
+
+		$$self{BYTE} += length($line);
+
+		while($line =~ m/\((\d+),'(.*?)','(.*?)',(\d+)\)[;,]/g) {
+			push(@{$$self{BUFFER}}, [$1, $2, $3, $4]);
+			$need_data = 0;
+		}
+	}
+
+	#if we still need data and we are here it means we ran out of input
+	if ($need_data) {
+		return 0;
+	}
+	
+	return 1;
+}
+
+sub open {
+	my ($self, $source) = @_;
+
+	if (ref($source) ne 'GLOB') {
+		die "could not open $source: $!" unless
+			open($$self{SOURCE}, $source);
+
+		$$self{SOURCE_FILE} = $source;
+	} else {
+		$$self{SOURCE} = $source;
+	}
+
+	binmode($$self{SOURCE}, ':utf8');
+
+	return 1;
+}
+
+sub init {
+	my ($self) = @_;
+	my $source = $$self{SOURCE};
+	my $found = 0;
+	
+	while(<$source>) {
+		if (m/^LOCK TABLES `categorylinks` WRITE;/) {
+			$found = 1;
+			last;
+		}
+	}
+
+	die "not a MediaWiki link dump file" unless $found;
+}
+
+sub current_byte {
+	my ($self) = @_;
+
+	return $$self{BYTE};
+}
+
+sub size {
+	my ($self) = @_;
+	
+	return undef unless defined $$self{SOURCE_FILE};
+
+	my @stat = stat($$self{SOURCE_FILE});
+
+	return $stat[7];
+}
+
+package Parse::MediaWikiDump::category_link;
+
+#you must pass in a fully populated link array reference
+sub new {
+	my ($class, $self) = @_;
+
+	bless($self, $class);
+
+	return $self;
+}
+
+sub from {
+	my ($self) = @_;
+	return $$self[0];
+}
+
+sub to {
+	my ($self) = @_;
+	return $$self[1];
+}
+
+sub sortkey {
+	my ($self) = @_;
+	return $$self[2];
+}
+
+sub timestamp {
+	my ($self) = @_;
+	return $$self[3];
+}
+
+#package Parse::MediaWikiDump::ExternalLinks;
+#
+#use strict;
+#use warnings;
+#
+#sub new {
+#	my ($class, $source) = @_;
+#	my $self = {};
+#
+#	$$self{BUFFER} = [];
+#	$$self{BYTE} = 0;
+#
+#	bless($self, $class);
+#
+#	$self->open($source);
+#	$self->init;
+#
+#	return $self;
+#}
+#
+#sub next {
+#	my ($self) = @_;
+#	my $buffer = $$self{BUFFER};
+#	my $link;
+#
+#	while(1) {
+#		if (defined($link = pop(@$buffer))) {
+#			last;
+#		}
+#
+#		#signals end of input
+#		return undef unless $self->parse_more;
+#	}
+#
+#	return Parse::MediaWikiDump::external_link->new($link);
+#}
+#
+##private functions with OO interface
+#sub parse_more {
+#	my ($self) = @_;
+#	my $source = $$self{SOURCE};
+#	my $need_data = 1;
+#	
+#	while($need_data) {
+#		my $line = <$source>;
+#
+#		last unless defined($line);
+#
+#		$$self{BYTE} += length($line);
+#
+#		while($line =~ m/\((\d+),'(.*?)','(.*?)'\)[;,]/g) {
+#			push(@{$$self{BUFFER}}, [$1, $2, $3]);
+#			$need_data = 0;
+#		}
+#	}
+#
+#	#if we still need data and we are here it means we ran out of input
+#	if ($need_data) {
+#		return 0;
+#	}
+#	
+#	return 1;
+#}
+#
+#sub open {
+#	my ($self, $source) = @_;
+#
+#	if (ref($source) ne 'GLOB') {
+#		die "could not open $source: $!" unless
+#			open($$self{SOURCE}, $source);
+#
+#		$$self{SOURCE_FILE} = $source;
+#	} else {
+#		$$self{SOURCE} = $source;
+#	}
+#
+#	binmode($$self{SOURCE}, ':utf8');
+#
+#	return 1;
+#}
+#
+#sub init {
+#	my ($self) = @_;
+#	my $source = $$self{SOURCE};
+#	my $found = 0;
+#	
+#	while(<$source>) {
+#		if (m/^LOCK TABLES `externallinks` WRITE;/) {
+#			$found = 1;
+#			last;
+#		}
+#	}
+#
+#	die "not a MediaWiki link dump file" unless $found;
+#}
+#
+#sub current_byte {
+#	my ($self) = @_;
+#
+#	return $$self{BYTE};
+#}
+#
+#sub size {
+#	my ($self) = @_;
+#	
+#	return undef unless defined $$self{SOURCE_FILE};
+#
+#	my @stat = stat($$self{SOURCE_FILE});
+#
+#	return $stat[7];
+#}
+#
+#package Parse::MediaWikiDump::external_link;
+#
+##you must pass in a fully populated link array reference
+#sub new {
+#	my ($class, $self) = @_;
+#
+#	bless($self, $class);
+#
+#	return $self;
+#}
+#
+#sub from {
+#	my ($self) = @_;
+#	return $$self[0];
+#}
+#
+#sub to {
+#	my ($self) = @_;
+#	return $$self[1];
+#}
+#
+#sub index {
+#	my ($self) = @_;
+#	return $$self[2];
+#}
+#
+#sub timestamp {
+#	my ($self) = @_;
+#	return $$self[3];
+#
 1;
 
 __END__
@@ -985,6 +1279,7 @@ Parse::MediaWikiDump - Tools to process MediaWiki dump files
   $pages->generator;
   $pages->case;
   $pages->namespaces;
+  $pages->namespaces_names;
   $pages->current_byte;
   $pages->size;
 
@@ -1080,6 +1375,16 @@ Returns an array reference to the list of namespaces in the instance. Each
 namespace is stored as an array reference which has two items; the first is the
 namespace number and the second is the namespace name. In the case of namespace
 0 the text stored for the name is ''.
+
+=item $pages->namespaces_names
+
+Returns an array reference to a list of namspace names only; this is a single
+dimensional array with plain text string values.
+
+=item $pages->namespaces
+
+Returns an array reference to the list of namespaces names in the instance,
+without namespaces numbers. Main namespace name is ''.
 
 =item $pages->current_byte
 
@@ -1395,7 +1700,11 @@ of callbacks to use when it encounters each specific token.
 
 =head1 AUTHOR
 
-This module was created and documented by Tyler Riddle E<lt>triddle@gmail.comE<gt>. 
+This module was created, documented, and is maintained by 
+Tyler Riddle E<lt>triddle@gmail.comE<gt>. 
+
+Fix for bug 36255 "Parse::MediaWikiDump::page::namespace may return a string
+which is not really a namespace" provided by Amir E. Aharoni.
 
 =head1 BUGS
 
