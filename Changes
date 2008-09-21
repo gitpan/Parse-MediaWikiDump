@@ -1,5 +1,11 @@
 Revision history for Parse-MediaWikiDump
 
+0.51.1  Sep 21, 2008
+        * Bug #31310, Makefile.PL should require perl 5.6, resolved.
+        * Bug #38206, "Parse::MediaWikiDump XML dump file not closed on 
+          DESTROY," logged as a known bug in the documentation. See
+          http://rt.cpan.org/Ticket/Display.html?id=38206 for details.
+
 0.51	May 31, 2008
 	* Fix for bug 36255 "Parse::MediaWikiDump::page::namespace may return
   	  a string which is not really a namespace" provided by Amir E. Aharoni.

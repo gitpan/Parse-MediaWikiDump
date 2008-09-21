@@ -1,5 +1,5 @@
 package Parse::MediaWikiDump;
-our $VERSION = '0.51';
+our $VERSION = '0.51.1';
 
 #the POD is at the end of this file
 
@@ -1716,7 +1716,18 @@ your bug as I make changes.
 
 =head2 Known Bugs
 
-No known bugs at this time. 
+=over 4
+
+=item #38206 "Parse::MediaWikiDump XML dump file not closed on DESTROY"
+
+There is a memory leak in the XML dump file parser that causes an instance of
+the parser to never get garbage collected even if it goes completley out of 
+scope. This bug shows it's head when you open and close many different dump
+files or if you are trying to free all memory used by this module. Resolution 
+time for this bug is currently unestimated. 
+
+
+=back
 
 =head1 COPYRIGHT & LICENSE
 

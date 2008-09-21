@@ -2,6 +2,8 @@ use strict;
 use warnings;
 use ExtUtils::MakeMaker;
 
+require 5.6.0;
+
 WriteMakefile(
     NAME                => 'Parse::MediaWikiDump',
     AUTHOR              => 'Tyler Riddle <triddle@gmail.com>',

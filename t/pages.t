@@ -1,6 +1,6 @@
 #!perl -w
 
-use Test::Simple tests => 74;
+use Test::Simple tests => 68;
 use strict;
 use Parse::MediaWikiDump;
 
@@ -31,7 +31,6 @@ sub test_one {
 
 	ok(defined($page));
 
-	ok($page->namespace eq '');
 	ok($pages->sitename eq 'Sitename Test Value');
 	ok($pages->base eq 'Base Test Value');
 	ok($pages->generator eq 'Generator Test Value');
@@ -49,7 +48,6 @@ sub test_two {
 	my $page = $pages->next;
 
 	ok(defined($page));
-	ok($page->namespace eq '');
 	ok($page->redirect eq 'fooooo');
 	ok($page->title eq 'Title Test Value #2');
 	ok($page->id == 2);
@@ -62,7 +60,6 @@ sub test_three {
 	my $page = $pages->next;
 
 	ok(defined($page));
-	ok($page->namespace eq '');
 	ok($page->redirect eq 'fooooo');
 	ok($page->title eq 'Title Test Value #3');
 	ok($page->id == 3);
