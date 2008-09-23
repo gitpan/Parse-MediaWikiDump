@@ -1,5 +1,5 @@
 package Parse::MediaWikiDump;
-our $VERSION = '0.51.1';
+our $VERSION = '0.52';
 
 #the POD is at the end of this file
 
@@ -1725,7 +1725,6 @@ the parser to never get garbage collected even if it goes completley out of
 scope. This bug shows it's head when you open and close many different dump
 files or if you are trying to free all memory used by this module. Resolution 
 time for this bug is currently unestimated. 
-
 
 =back
 
