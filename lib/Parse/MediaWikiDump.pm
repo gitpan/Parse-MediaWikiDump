@@ -1,5 +1,5 @@
 package Parse::MediaWikiDump;
-our $VERSION = '0.52';
+our $VERSION = '0.53';
 
 #the POD is at the end of this file
 
@@ -16,6 +16,7 @@ use strict;
 use warnings;
 use List::Util;
 use XML::Parser;
+use Scalar::Util qw(weaken);
 
 #tokens in the buffer are an array ref with the 0th element specifying
 #its type; these are the constants for those types. 
@@ -23,18 +24,26 @@ use XML::Parser;
 sub new {
 	my ($class, $source) = @_;
 	my $self = {};
+	my $parser_state;
 
-	bless($self, $class);
+	bless ($self, $class);
 
 	$$self{PARSER} = XML::Parser->new(ProtocolEncoding => 'UTF-8');
 	$$self{PARSER}->setHandlers('Start', \&start_handler,
 					'End', \&end_handler);
-		$$self{EXPAT} = $$self{PARSER}->parse_start(state => $self);
+
+	$$self{GOOD_TAGS} = make_good_tags();
 	$$self{BUFFER} = []; 
 	$$self{CHUNK_SIZE} = 32768;
 	$$self{BUF_LIMIT} = 10000;
 	$$self{BYTE} = 0;
-	$$self{GOOD_TAGS} = make_good_tags();
+
+	$parser_state = { 
+		BUFFER => $$self{BUFFER}, 
+		GOOD_TAGS => $$self{GOOD_TAGS},
+	};
+
+	$$self{EXPAT} = $$self{PARSER}->parse_start(state => $parser_state);
 
 	$self->open($source);
 	$self->init;
@@ -696,10 +705,10 @@ sub token2text {
 
 sub start_handler {
 	my ($p, $tag, %atts) = @_;	
-	my $self = $p->{state};
-	my $good_tags = $$self{GOOD_TAGS};
+	my $good_tags = $p->{state}{GOOD_TAGS};
+	my $buf = $p->{state}{BUFFER};
 
-	push @{ $$self{BUFFER} }, [$tag, \%atts];
+	push(@$buf, [$tag, \%atts]);
 
 	if (defined($good_tags->{$tag})) {
 		$p->setHandlers(Char => \&char_handler);
@@ -710,9 +719,9 @@ sub start_handler {
 
 sub end_handler {
 	my ($p, $tag) = @_;
-	my $self = $p->{state};
+	my $buffer = $p->{state}{BUFFER};
 
-	push @{ $$self{BUFFER} }, ["/$tag"];
+	push (@$buffer, ["/$tag"]);
 
 	$p->setHandlers(Char => undef);
 	
@@ -722,7 +731,7 @@ sub end_handler {
 sub char_handler {
 	my ($p, $chars) = @_;
 	my $self = $p->{state};
-	my $buffer = $$self{BUFFER};
+	my $buffer = $p->{state}{BUFFER};
 	my $curent = $$buffer[-1];
 
 	if (ref $curent eq 'SCALAR') {

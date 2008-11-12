@@ -14,6 +14,7 @@ WriteMakefile(
  	'List::Util' => 0,
         'Test::More' => 0,
 	'XML::Parser' => 0,
+        'Test::Memory::Cycle' => 0,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'Parse-MediaWikiDump-*' },
