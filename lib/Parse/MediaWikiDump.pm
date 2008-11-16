@@ -1,5 +1,5 @@
 package Parse::MediaWikiDump;
-our $VERSION = '0.53';
+our $VERSION = '0.54';
 
 #the POD is at the end of this file
 
@@ -16,7 +16,7 @@ use strict;
 use warnings;
 use List::Util;
 use XML::Parser;
-use Scalar::Util qw(weaken);
+use Object::Destroyer;
 
 #tokens in the buffer are an array ref with the 0th element specifying
 #its type; these are the constants for those types. 
@@ -24,7 +24,7 @@ use Scalar::Util qw(weaken);
 sub new {
 	my ($class, $source) = @_;
 	my $self = {};
-	my $parser_state;
+	my $parser_state = {}; #Hash::NoRef->new;
 
 	bless ($self, $class);
 
@@ -38,12 +38,11 @@ sub new {
 	$$self{BUF_LIMIT} = 10000;
 	$$self{BYTE} = 0;
 
-	$parser_state = { 
-		BUFFER => $$self{BUFFER}, 
-		GOOD_TAGS => $$self{GOOD_TAGS},
-	};
+	$parser_state->{GOOD_TAGS} = $$self{GOOD_TAGS};
+	$parser_state->{BUFFER} = $$self{BUFFER};
 
-	$$self{EXPAT} = $$self{PARSER}->parse_start(state => $parser_state);
+	my $expat_bb = $$self{PARSER}->parse_start(state => $parser_state);
+	$$self{EXPAT} = Object::Destroyer->new($expat_bb, 'parse_done');
 
 	$self->open($source);
 	$self->init;
@@ -56,6 +55,8 @@ sub next {
 	my $buffer = $$self{BUFFER};
 	my $offset;
 	my @page;
+
+	return undef if defined $self->{FINISHED};
 
 	#look through the contents of our buffer for a complete article; fill
 	#the buffer with more data if an entire article is not there
@@ -232,7 +233,8 @@ sub parse_more {
 		die "error during read: $!";
 	} elsif ($read == 0) {
 		$$self{FINISHED} = 1;
-		$$self{EXPAT}->parse_done();
+		$$self{EXPAT} = undef; #parse_done is invoked through 
+				       #Object::Destroyer
 		return 0;
 	}
 
