@@ -1,5 +1,8 @@
 Revision history for Parse-MediaWikiDump
 
+0.55  Nov 17, 2008
+        * Missing dependency in module metadata.
+
 0.54  Nov 16. 2008
         * Revisiting bug #38206 "Parse::MediaWikiDump XML dump file not closed 
  	  on DESTROY" a newly identified memory leak was fixed. 

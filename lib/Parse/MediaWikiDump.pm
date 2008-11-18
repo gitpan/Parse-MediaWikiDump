@@ -1,5 +1,5 @@
 package Parse::MediaWikiDump;
-our $VERSION = '0.54';
+our $VERSION = '0.55';
 
 #the POD is at the end of this file
 
