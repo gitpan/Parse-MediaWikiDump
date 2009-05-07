@@ -8,8 +8,8 @@ lib/Parse/MediaWikiDump.pm
 t/00-load.t
 t/pages.t
 t/links.t
-t/pages-compat.t
 t/links-compat.t
 t/pages_test.xml
 t/links_test.sql
-TODO
+t/revisions_test.xml
+t/revisions.t

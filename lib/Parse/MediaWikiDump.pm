@@ -1,7 +1,263 @@
 package Parse::MediaWikiDump;
-our $VERSION = '0.55';
+our $VERSION = '0.90';
 
 #the POD is at the end of this file
+
+package Parse::MediaWikiDump::Revisions;
+
+use strict;
+use warnings;
+use List::Util;
+use Object::Destroyer;
+use Data::Dumper;
+
+#public methods
+sub new {
+	my ($class, $source) = @_;
+	my $self = {};
+
+	bless($self, $class);
+
+	$$self{XML} = undef; #holder for XML::Accumulator
+	$$self{EXPAT} = undef; #holder for expat under XML::Accumulator
+	$$self{SITEINFO} = {}; #holder for the data from siteinfo
+	$$self{PAGE_LIST} = []; #place to store articles as they come out of XML::Accumulator
+	$$self{BYTE} = 0;
+	$$self{CHUNK_SIZE} = 32768;
+	$$self{FINISHED} = 0;
+
+	$self->open($source);
+	$self->init;
+	
+	return $self;
+}
+
+sub next {
+	my ($self) = @_;
+	my $case = $self->{SITEINFO}->{CASE};
+	my $namespaces = $self->{SITEINFO}->{namespaces};
+	
+	my $page;
+	
+	while(1) {
+		$page = shift(@{ $self->{PAGE_LIST} } );
+		
+		if (defined($page)) {
+			
+			return Parse::MediaWikiDump::page->new($page, $self->get_category_anchor, $case, $namespaces);
+		}
+		
+		return undef unless $self->parse_more;		
+	}
+	
+	die "should not get here";
+}
+
+sub sitename {
+	my ($self) = @_;
+	return $$self{SITEINFO}{sitename};
+}
+
+sub base {
+	my ($self) = @_;
+	return $$self{SITEINFO}{base};
+}
+
+sub generator {
+	my ($self) = @_;
+	return $$self{SITEINFO}{generator};
+}
+
+sub case {
+	my ($self) = @_;
+	return $$self{SITEINFO}{case};
+}
+
+sub namespaces {
+	my ($self) = @_;
+	return $$self{SITEINFO}{namespaces};
+}
+
+sub namespaces_names {
+	my $self = shift;
+	return $$self{SITEINFO}{namespaces_names};
+}
+
+sub current_byte {
+	my ($self) = @_;
+	return $$self{BYTE};
+}
+
+sub size {
+	my ($self) = @_;
+	
+	return undef unless defined $$self{SOURCE_FILE};
+
+	my @stat = stat($$self{SOURCE_FILE});
+
+	return $stat[7];
+}
+
+#private functions with OO interface
+
+#sub cleanup {
+#	my ($self) = @_;
+#	
+#	warn "executing cleanup";
+#	
+##	$self->{EXPAT} = undef;	
+##	$self->{XML} = undef;
+#}
+
+sub open {
+	my ($self, $source) = @_;
+
+	if (ref($source) eq 'GLOB') {
+		$$self{SOURCE} = $source;
+	} else {
+		if (! open($$self{SOURCE}, $source)) {
+			die "could not open $source: $!";
+		}
+
+		$$self{SOURCE_FILE} = $source;
+	}
+
+	binmode($$self{SOURCE}, ':utf8');
+
+	return 1;
+}
+
+sub init {
+	my ($self) = @_;
+	
+	$self->{XML} = $self->new_accumulator_engine;
+	my $expat_bb = $$self{XML}->parser->parse_start();
+	$$self{EXPAT} = Object::Destroyer->new($expat_bb, 'parse_done');
+	
+	#load the information from the siteinfo section so it is available before
+	#someone calls ->next
+	while(1) {
+		if (scalar(@{$self->{PAGE_LIST}}) > 1) {
+			last;
+		}	
+		
+		$self->parse_more;	
+	}
+}
+
+sub new_accumulator_engine {
+	my ($self) = @_;
+	my $f = Parse::MediaWikiDump::XML::Accumulator->new;
+	my $store_siteinfo = $self->{SITEINFO};
+	my $store_page = $self->{PAGE_LIST};
+	
+	my $root = $f->root;
+	my $mediawiki = $f->node('mediawiki', Start => \&validate_mediawiki_node);
+	
+	#stuff for siteinfo
+	my $siteinfo = $f->node('siteinfo', End => sub { %$store_siteinfo = %{ $_[1] } } );
+	my $sitename = $f->textcapture('sitename');
+	my $base = $f->textcapture('base');
+	my $generator = $f->textcapture('generator');
+	my $case = $f->textcapture('case');
+	my $namespaces = $f->node('namespaces', Start => sub { $_[1]->{namespaces} = []; } );
+	my $namespace = $f->node('namespace', Character => \&save_namespace_node);
+	
+	#stuff for page entries
+	my $page = $f->node('page', Start => sub { $_[0]->accumulator( {} ) } );
+	my $title = $f->textcapture('title');
+	my $id = $f->textcapture('id');
+	my $revision = $f->node('revision', 
+		Start => sub { $_[1]->{minor} = 0 }, End => sub { push(@$store_page, { %{ $_[1] } } ) } );
+	my $rev_id = $f->textcapture('id', 'revision_id');
+	my $minor = $f->node('minor', Start => sub { $_[1]->{minor} = 1 } );
+	my $time = $f->textcapture('timestamp');
+	my $contributor = $f->node('contributor');
+	my $username = $f->textcapture('username');
+	my $ip = $f->textcapture('ip');
+	my $contrib_id = $f->textcapture('id', 'userid');
+	my $comment = $f->textcapture('comment');
+	my $text = $f->textcapture('text');
+	my $restr = $f->textcapture('restrictions');
+	
+	#put together the tree
+	$siteinfo->add_child($sitename, $base, $generator, $case, $namespaces);
+	  $namespaces->add_child($namespace);
+	
+	$page->add_child($title, $id, $revision, $restr);
+	  $revision->add_child($rev_id, $time, $contributor, $minor, $comment, $text);
+	    $contributor->add_child($username, $ip, $contrib_id);
+	
+	$mediawiki->add_child($siteinfo, $page);
+	$root->add_child($mediawiki);
+	
+	my $engine = $f->engine($root, {});
+
+	return $engine;	
+}
+
+sub parse_more {
+        my ($self) = @_;
+        my $buf;
+
+        my $read = read($$self{SOURCE}, $buf, $$self{CHUNK_SIZE});
+
+        if (! defined($read)) {
+                die "error during read: $!";
+        } elsif ($read == 0) {
+                $$self{FINISHED} = 1;
+                $$self{EXPAT} = undef; #Object::Destroyer cleans this up
+                return 0;
+        }
+
+        $$self{BYTE} += $read;
+        $$self{EXPAT}->parse_more($buf);
+
+        return 1;
+}
+
+sub get_category_anchor {
+	my ($self) = @_;
+	my $namespaces = $self->{SITEINFO}->{namespaces};
+
+	foreach (@$namespaces) {
+		my ($id, $name) = @$_;
+		if ($id == 14) {
+			return $name;
+		}
+	}	
+	
+	return undef;
+}
+
+#sub save_page {
+#	my ($page, $save_to) = @_;
+#	my %page = %$page; #make a local copy
+#	
+#	push(@{ $self->{PAGE_LIST} }, \%page);
+#}
+
+
+#helper functions that the xml accumulator uses
+sub save_namespace_node {
+	my ($parser, $accum, $text, $element, $attrs) = @_;
+	my $key = $attrs->{key};
+	my $namespaces = $accum->{namespaces};
+	
+	push(@{ $accum->{namespaces} }, [$key, $text] );
+}
+
+sub validate_mediawiki_node {
+	my ($engine, $a, $element, $attrs) = @_;
+	die "Only version 0.3 dump files are supported" unless $attrs->{version} eq '0.3';
+}
+
+sub save_siteinfo {
+	my ($self, $info) = @_;
+	my %info = %$info;
+	
+	$self->{SITEINFO} = \%info;
+}
 
 package Parse::MediaWikiDump::Pages;
 
@@ -16,10 +272,7 @@ use strict;
 use warnings;
 use List::Util;
 use XML::Parser;
-use Object::Destroyer;
-
-#tokens in the buffer are an array ref with the 0th element specifying
-#its type; these are the constants for those types. 
+use Carp;
 
 sub new {
 	my ($class, $source) = @_;
@@ -56,8 +309,6 @@ sub next {
 	my $offset;
 	my @page;
 
-	return undef if defined $self->{FINISHED};
-
 	#look through the contents of our buffer for a complete article; fill
 	#the buffer with more data if an entire article is not there
 	while(1) {
@@ -78,7 +329,8 @@ sub next {
 
 	my $data = $self->parse_page(\@page);
 
-	return Parse::MediaWikiDump::page->new($data, $$self{CATEGORY_ANCHOR});
+	return Parse::MediaWikiDump::page->new($data, $$self{CATEGORY_ANCHOR}, 
+		$$self{HEAD}{CASE}, $$self{HEAD}{namespaces});
 }
 
 #outputs a nicely formated representation of the tokens on the buffer specified
@@ -178,6 +430,9 @@ sub size {
 #replaced by next()
 sub page {
 	my ($self) = @_;
+	
+	carp("the page() method is depreciated and is going away in the future, use next() instead");
+	
 	return $self->next(@_);
 }
 
@@ -233,8 +488,7 @@ sub parse_more {
 		die "error during read: $!";
 	} elsif ($read == 0) {
 		$$self{FINISHED} = 1;
-		$$self{EXPAT} = undef; #parse_done is invoked through 
-				       #Object::Destroyer
+		$$self{EXPAT} = undef; #Object::Destroyer invokes parse_done()
 		return 0;
 	}
 
@@ -584,14 +838,14 @@ sub parse_page {
 				my $token = $$buffer[++$i];
 
 				if (ref $token eq 'ARRAY' && $$token[0] eq '/text') {
-					${$data{text}} = '';
+					$data{text} = '';
 					next;
 				} elsif (ref $token ne 'SCALAR') {
 					$self->dump($buffer);
 					die "$i: expected TEXT; got " . token2text($token);
 				}
 
-				$data{text} = $token;
+				$data{text} = $$token;
 
 				$token = $$buffer[++$i];
 
@@ -707,10 +961,10 @@ sub token2text {
 
 sub start_handler {
 	my ($p, $tag, %atts) = @_;	
-	my $good_tags = $p->{state}{GOOD_TAGS};
-	my $buf = $p->{state}{BUFFER};
+	my $self = $p->{state};
+	my $good_tags = $$self{GOOD_TAGS};
 
-	push(@$buf, [$tag, \%atts]);
+	push @{ $$self{BUFFER} }, [$tag, \%atts];
 
 	if (defined($good_tags->{$tag})) {
 		$p->setHandlers(Char => \&char_handler);
@@ -721,9 +975,9 @@ sub start_handler {
 
 sub end_handler {
 	my ($p, $tag) = @_;
-	my $buffer = $p->{state}{BUFFER};
+	my $self = $p->{state};
 
-	push (@$buffer, ["/$tag"]);
+	push @{ $$self{BUFFER} }, ["/$tag"];
 
 	$p->setHandlers(Char => undef);
 	
@@ -733,7 +987,7 @@ sub end_handler {
 sub char_handler {
 	my ($p, $chars) = @_;
 	my $self = $p->{state};
-	my $buffer = $p->{state}{BUFFER};
+	my $buffer = $$self{BUFFER};
 	my $curent = $$buffer[-1];
 
 	if (ref $curent eq 'SCALAR') {
@@ -749,9 +1003,10 @@ package Parse::MediaWikiDump::page;
 
 use strict;
 use warnings;
+use List::Util;
 
 sub new {
-	my ($class, $data, $category_anchor, $case_setting) = @_; 
+	my ($class, $data, $category_anchor, $case_setting, $namespaces) = @_; 
 	my $self = {};
 
 	bless($self, $class);
@@ -759,14 +1014,44 @@ sub new {
 	$$self{DATA} = $data;
 	$$self{CACHE} = {};
 	$$self{CATEGORY_ANCHOR} = $category_anchor;
+	$$self{NAMESPACES} = $namespaces;
 
 	return $self;
 }
 
 sub namespace {
 	my ($self) = @_;
+	my $title = $self->title;
+	my $namespace = '';
+	
+	#warn "size " . scalar(@{ $self->{NAMESPACES} });
+	
+	return $$self{CACHE}{namespace} if defined $$self{CACHE}{namespace};
+	
+	if ($title =~ m/^([^:]+):(.*)/) {
+#		warn "got a namespace candidate: $1 - $2";
 
-	return $$self{DATA}{namespace};
+		foreach (@{ $self->{NAMESPACES} } ) {
+			my ($num, $name) = @$_;
+			
+#			warn $name;
+
+#			warn "$1 $name";
+			
+			if ($1 eq $name) {
+				$namespace = $1;
+				last;
+			}
+		}
+	}
+
+#	warn "this function is still broken";
+
+#	warn "namespace: $namespace";
+	
+	$$self{CACHE}{namespace} = $namespace;
+
+	return $namespace;
 }
 
 sub categories {
@@ -799,7 +1084,7 @@ sub redirect {
 
 	return $$self{CACHE}{redirect} if exists($$self{CACHE}{redirect});
 
-	if ($$text =~ m/^#redirect\s*:?\s*\[\[([^\]]*)\]\]/i) {
+	if ($text =~ m/^#redirect\s*:?\s*\[\[([^\]]*)\]\]/i) {
 		$$self{CACHE}{redirect} = $1;
 		return $1;
 	} else {
@@ -845,7 +1130,7 @@ sub minor {
 
 sub text {
 	my ($self) = @_;
-	return $$self{DATA}{text};
+	return \$$self{DATA}{text};
 }
 
 package Parse::MediaWikiDump::Links;
@@ -1257,6 +1542,403 @@ sub timestamp {
 #	my ($self) = @_;
 #	return $$self[3];
 #
+
+#this is set to become a new module on CPAN after
+#testing is done and documentation is written
+package Parse::MediaWikiDump::XML::Accumulator;
+
+use warnings;
+use strict;
+
+sub new {
+	my ($class) = @_;
+	my $self = {};
+	
+	bless($self, $class);
+}
+
+sub engine {
+	shift(@_);
+	return Parse::MediaWikiDump::XML::Accumulator::Engine->new(@_);
+}
+
+sub node {
+	shift(@_);
+	return Parse::MediaWikiDump::XML::Accumulator::Node->new(@_);
+}
+
+sub root {
+	shift(@_);
+	return Parse::MediaWikiDump::XML::Accumulator::Root->new(@_);
+	
+}
+
+sub textcapture {
+	shift(@_);
+	return Parse::MediaWikiDump::XML::Accumulator::TextCapture->new(@_);
+}
+
+package Parse::MediaWikiDump::XML::Accumulator::Engine;
+
+use strict; 
+use warnings;
+use Carp qw(croak);
+
+use XML::Parser;
+use Object::Destroyer;
+
+sub new {
+	my ($class, $root, $accum) = @_;
+	my $self = {};
+	
+	croak "must specify a tree root" unless defined $root;
+	
+	eval { $root->validate; };
+	die "root node failed validation: $@" if $@;
+	
+	bless($self, $class);
+		
+	$self->{parser} = $self->init_parser;
+	$self->{root} = $root;
+	$self->{element_stack} = [];
+	$self->{accum} = $accum;
+	$self->{char_buf} = '';
+	$self->{char_dirty} = 0;
+	$self->{node_stack} = [ $root ];
+	
+	return Object::Destroyer->new($self, 'cleanup');
+}
+
+sub cleanup {
+	my ($self) = @_;
+	
+	$self->parser->setHandlers(Init => undef, Final => undef, Start => undef, 
+		End => undef, Char => undef);
+}
+
+sub init_parser {
+	my ($self) = @_;
+	
+	my $parser = XML::Parser->new(
+		Handlers => {
+			Init => sub { handle_init_event($self, @_) },
+			Final => sub { handle_final_event($self, @_) },
+			Start => sub { handle_start_event($self, @_) },
+			End => sub { handle_end_event($self, @_) },
+			Char => sub { handle_char_event($self, @_) },
+		}
+	);
+	
+	return $parser;	
+}
+
+sub parser {
+	my ($self) = @_;
+	
+	return $self->{parser};
+}
+
+sub handle_init_event {
+	my ($self, $expat) = @_;
+	my $root = $self->{root};
+	my $handlers = $root->{handlers};
+	
+	if (defined(my $cb = $handlers->{Init})) {
+		&cb($self);
+	}
+}
+
+sub handle_final_event {
+	my ($self, $expat) = @_;
+	my $root = $self->{root};
+	my $handlers = $root->{handlers};
+	
+	if (defined(my $cb = $handlers->{Final})) {
+		&cb($self);
+	}
+}
+
+sub handle_start_event {
+	my ($self, $expat, $element, %attrs) = @_;
+	my $element_stack = $self->{element_stack};
+	my $node = $self->node;
+	my $matched = $node->{children}->{$element};
+	my $handler;
+	
+	if (! defined($matched)) {
+		die "fatal error - no match for element $element";
+	}
+	
+	$handler = $matched->{handlers}->{Start};
+	
+	$self->flush_chars;	
+	defined $handler && &$handler($self, $self->{accum}, $element, \%attrs);
+		
+	push(@{$self->{node_stack}}, $matched);
+	push(@$element_stack, [$element, \%attrs]);
+	
+}
+
+sub handle_end_event {
+	my ($self, $expat, $element) = @_;
+	my $handler = $self->node->{handlers}->{End};
+	my $node_stack = $self->{node_stack};
+	
+	$self->flush_chars;
+
+	defined $handler && &$handler($self, $self->{accum}, @{$self->element});
+	
+	pop(@$node_stack);
+	pop(@{$self->{element_stack}});
+	
+}
+
+sub handle_char_event {
+	my ($self, $expat, $chars) = @_; 
+	
+	$self->{char_buf} .= $chars; 
+	$self->{char_dirty} = 1;
+}
+
+sub flush_chars {
+	my ($self) = @_;
+	my ($handler, $cur_element);
+	
+	return undef unless $self->{char_dirty} == 1;
+	
+	$handler = $self->node->{handlers}->{Character};
+	$cur_element = $self->element;
+	
+	if (! defined($cur_element = $self->element)) {
+		$cur_element = [];
+	}
+	
+	defined $handler && &$handler($self, $self->{accum}, $self->{char_buf}, @$cur_element);
+		
+	$self->{char_buf} = '';
+	$self->{char_dirty} = 0;
+	
+	return undef;
+}
+
+sub node {
+	my ($self) = @_;
+	my $stack = $self->{node_stack};
+	my $size = scalar(@$stack);
+
+	return $$stack[$size - 1];
+}
+
+sub element {
+	my ($self) = @_;
+	my $stack = $self->{element_stack};
+	my $size = scalar(@$stack);
+	my $return = $$stack[$size - 1];
+	
+	return $return;
+}
+
+sub accumulator {
+	my ($self, $new) = @_;
+	
+	if (defined($new)) {
+		$self->{accum} = $new;
+	}	
+	
+	return $self->{accum};
+}
+
+package Parse::MediaWikiDump::XML::Accumulator::Node;
+
+use strict;
+use warnings;
+
+use Carp qw(croak cluck);
+
+sub new {
+	my ($class, $name, %handlers)	= @_;
+	my $self = {};
+	
+	croak("must specify a node name") unless defined $name;
+	
+	$self->{name} = $name;
+	$self->{handlers} = \%handlers;
+	$self->{children} = {};
+	$self->{debug} = 1;
+	
+	bless($self, $class);
+	
+	return $self;
+}
+
+sub name {
+	my ($self) = @_;
+	return $self->{name};
+}
+
+sub handlers {
+	my ($self) = @_;
+	return $self->{handlers};
+}
+
+sub unset_handlers {
+	my ($self) = @_;
+	
+	$self->{handlers} = undef;
+	
+	foreach (values(%{ $self->{children} })) {
+		$_->unset_handlers;
+	}
+	
+	return 1;
+}
+
+sub error {
+	my ($self, $path, $string) = @_;
+	my $name = $self->{name};
+	
+	if (ref($path) ne 'ARRAY') {
+		cluck "must specify an array ref for node path in tree";
+	}
+	
+	if ($self->{debug}) {
+		print "Fatal error in node $name: $string\n";
+		print "Node tree path:\n";
+		
+		$self->print_path($path);
+	}
+		
+	die "fatal error: $string";
+}
+
+sub print_path {
+	my ($self, $path) = @_;
+	my $i = 0;
+	
+	foreach (@$path) {
+			my ($name) = $_->name;
+			print "$i: $name\n";	
+	}
+	
+	return undef;
+}
+
+sub validate {
+	my ($self, $path) = @_;
+	my ($handlers) = $self->{handlers};
+	my (%ok);
+	
+	map({$ok{$_} = 1} $self->ok_handlers);
+	
+	if (! defined($path)) {
+		$path = [];
+	}
+	
+	push(@$path, $self);
+	
+	foreach (keys(%$handlers)) {
+		my $check = $handlers->{$_};
+		
+		if (! defined($check) || ref($check) ne 'CODE') {
+			$self->error($path, "Handler $_: not a code reference");
+			next;
+		}
+		
+		if (! $ok{$_}) {
+			$self->error($path, "$_ is not a valid event name");
+			next;
+		}
+	}
+	
+	foreach (values(%{$self->{children}})) {
+		$_->validate($path);
+	}
+
+	return undef;
+}
+
+sub ok_handlers {
+		return qw(Character Start End);
+	
+}
+
+sub print {
+	my ($self, $level) = @_;
+	
+	if (! defined($level)) {
+		$level = 1;
+	}	
+
+	print '  ' x $level, "$level: ", $self->name, "\n";
+	
+	$level++;
+	
+	foreach (values(%{$self->{children} } )) {
+		$_->print($level);
+	}
+	
+	$level--;
+}
+
+sub add_child {
+	my ($self, @children) = @_;
+	
+	foreach my $child (@children) {
+			my $name = $child->{name};
+			$self->{children}->{$name} = $child;	
+	}
+	
+	return $self;
+}
+
+package Parse::MediaWikiDump::XML::Accumulator::Root;
+
+use strict; 
+use warnings;
+
+use base qw(Parse::MediaWikiDump::XML::Accumulator::Node);
+
+sub new {
+	my ($class) = @_;
+	my $self = $class->SUPER::new('[root container]');
+	
+	bless($self, $class);
+}
+
+sub ok_handlers {
+		return qw(Init Final);
+}
+
+package Parse::MediaWikiDump::XML::Accumulator::TextCapture;
+
+use base qw(Parse::MediaWikiDump::XML::Accumulator::Node);
+
+use strict;
+use warnings;
+
+sub new {
+	my ($class, $name, $store_as) = @_;
+	my $self = $class->SUPER::new($name);
+		
+	bless($self, $class);
+
+	if (! defined($store_as)) {
+		$store_as = $name;		
+	}
+	
+	$self->{handlers} = {
+		Character => sub { char_handler($store_as, @_); }, 
+	};
+	
+	return $self;	
+}
+
+sub char_handler {
+	my ($store_as, $parser, $a, $chars, $element) = @_;
+	
+	$a->{$store_as} = $chars;
+}
+
 1;
 
 __END__
@@ -1407,6 +2089,23 @@ Returns the size of the dump file in bytes.
 
 =back
 
+=head4 Upgrade Path
+
+The Parse::MediaWikiDump::Pages object is being replaced with a new implementation 
+that is fully backwards compatible. The new implementation now supports multiple
+revisions for a single page. Both implementations return the same Parse::MediaWikiDump::page
+object and that interface is not changing. The new implementation is called 
+Parse::MediaWikiDump::Revisions and in the future Parse::MediaWikiDump::Pages
+will be a special case of Parse::MediaWikiDump::Revisions that will enforce
+only a single revision per page. 
+
+The upgrade process will not require any API or object behavior changes however
+the new implementation needs to be tested. Because Parse::MediaWikiDump::Revisions
+is fully backwards compatible with Parse::MediaWikiDump::Pages it is possible to
+use the new implementation as a drop in replacement for testing. Please report
+success and failures for Parse::MediaWikiDump::Revisions to the author contact
+at the end of this documentation. 
+
 =head3 Parse::MediaWikiDump::page
 
 The Parse::MediaWikiDump::page object represents a distinct MediaWiki page, 
@@ -1462,6 +2161,13 @@ not return all the categories the article actually belongs in.
 =item $page->minor
 
 =back
+
+=head2 Parse::MediaWikiDump::Revisions
+
+This parser is for the dump files that contain all the revision history information for a single 
+page. It works in an identical manner as Parse::MediaWikiDump::Pages including returning an 
+instance of Parse::MediaWikiDump::page. See the documentation for the previous two objects for
+details on how to use Parse::MediaWikiDump::Revisions. 
 
 =head2 Parse::MediaWikiDump::Links
 
@@ -1677,38 +2383,6 @@ The numerical id of the namespace the link points to.
     }
   }
 
-=head1 TODO
-
-=over 4
-
-=item Support comprehensive dump files
-
-Currently the full page dump files (such as 20050909_pages_full.xml.gz) 
-are not supported.
-
-=item Optimization
-
-It would be nice to increase the processing speed of the XML files. Current
-ideas:
-
-=over 4
-
-=item Move to arrays instead of hashes for base objects 
-
-Currently the base types for the majority of the classes are hashes. The 
-majority of these could be changed to arrays and numerical constants instead
-of using hashes. 
-
-=item Stackless parsing
-
-placing each XML token on the stack is probably quite time consuming. It may be
-beter to move to a stackless system where the XML parser is given a new set
-of callbacks to use when it encounters each specific token.
-
-=back
-
-=back
-
 =head1 AUTHOR
 
 This module was created, documented, and is maintained by 
@@ -1727,17 +2401,7 @@ your bug as I make changes.
 
 =head2 Known Bugs
 
-=over 4
-
-=item #38206 "Parse::MediaWikiDump XML dump file not closed on DESTROY"
-
-There is a memory leak in the XML dump file parser that causes an instance of
-the parser to never get garbage collected even if it goes completley out of 
-scope. This bug shows it's head when you open and close many different dump
-files or if you are trying to free all memory used by this module. Resolution 
-time for this bug is currently unestimated. 
-
-=back
+No known bugs at this time. 
 
 =head1 COPYRIGHT & LICENSE
 

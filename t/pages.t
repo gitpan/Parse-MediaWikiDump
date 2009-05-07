@@ -1,6 +1,6 @@
 #!perl -w
 
-use Test::Simple tests => 68;
+use Test::Simple tests => 70;
 use strict;
 use Parse::MediaWikiDump;
 
@@ -36,12 +36,14 @@ sub test_one {
 	ok($pages->generator eq 'Generator Test Value');
 	ok($pages->case eq 'Case Test Value');
 	ok($pages->namespaces->[0]->[0] == -2);
-	ok($page->title eq 'Title Test Value');
+	
+	ok($page->title eq 'Talk:Title Test Value');
 	ok($page->id == 1);
 	ok($page->timestamp eq '2005-07-09T18:41:10Z');
 	ok($page->username eq 'Username Test Value');
 	ok($page->userid == 1292);
 	ok($$text eq "Text Test Value\n");
+	ok($page->namespace eq 'Talk');
 }
 
 sub test_two {

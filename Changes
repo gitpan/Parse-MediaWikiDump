@@ -1,21 +1,13 @@
 Revision history for Parse-MediaWikiDump
 
-0.55  Nov 17, 2008
-        * Missing dependency in module metadata.
-
-0.54  Nov 16. 2008
-        * Revisiting bug #38206 "Parse::MediaWikiDump XML dump file not closed 
- 	  on DESTROY" a newly identified memory leak was fixed. 
-
-0.53  Oct 29, 2008
-        * Fix for bug #38206 "Parse::MediaWikiDump XML dump file not closed on 
-          DESTROY" incorporated.
-
-0.52  Sep 21, 2008
-        * Bug #31310, Makefile.PL should require perl 5.6, resolved.
-        * Bug #38206, "Parse::MediaWikiDump XML dump file not closed on 
-          DESTROY," logged as a known bug in the documentation. See
-          http://rt.cpan.org/Ticket/Display.html?id=38206 for details.
+0.90    May 07, 2009
+	* Implemented new parsing engine and called it 
+	  Parse::MediaWikiDump::Revisions. Soon it will be replacing
+	  Parse::MediaWikiDump::Pages as a base engine. It is fully backwards
+	  compatible so please feel free to test it in your existing utilities
+	  and report success and failure to the author.
+	* Moved namespace logic into Parse::MediaWikiDump::page and updated
+	  Parse::MediaWikiDump::Pages to support it. 
 
 0.51	May 31, 2008
 	* Fix for bug 36255 "Parse::MediaWikiDump::page::namespace may return

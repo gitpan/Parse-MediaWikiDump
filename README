@@ -19,16 +19,6 @@ To install this module, run the following commands:
     make test
     make install
 
-LIMITATIONS
-
-Parse::MediaWikiDump currently can not properly handle the full page dumps (a 
-dump where each page has more than one revision). In this instance 
-Parse::MediaWikiDump will abort processing of the archive. 
-
-Parse::MediaWikiDump is not as fast as it could be but it is faster than using
-most other XML parsing frameworks. The parser could stand to be rewritten to 
-be faster and handle the full page dumps. 
-
 EXAMPLE
 
 Extract the text for a given article from the given dump file:

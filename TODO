@@ -1,4 +1,0 @@
-  * Use a template system to integrate examples in the source distribution
-    right into the POD.
-  * Use a template system to perform automatic version information maintenance
-    across all the files that need version info.
