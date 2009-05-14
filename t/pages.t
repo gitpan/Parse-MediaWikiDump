@@ -1,17 +1,20 @@
 #!perl -w
 
-use Test::Simple tests => 70;
+use Test::Simple tests => 82;
 use strict;
 use Parse::MediaWikiDump;
 
 my $file = 't/pages_test.xml';
 my $fh;
 my $pages;
+my $mode;
 
+$mode = 'file';
 test_all($file);
 
 open($fh, $file) or die "could not open $file: $!";
 
+$mode = 'handle';
 test_all($fh);
 
 sub test_all {
@@ -36,6 +39,17 @@ sub test_one {
 	ok($pages->generator eq 'Generator Test Value');
 	ok($pages->case eq 'Case Test Value');
 	ok($pages->namespaces->[0]->[0] == -2);
+	ok($pages->namespaces_names->[0] eq 'Media');
+	ok($pages->current_byte != 0);
+	
+	if ($mode eq 'file') {
+		ok($pages->size == 2872);
+	} elsif ($mode eq 'handle') {
+		ok(! defined($pages->size))
+	} else {
+		die "invalid test mode";
+	}
+	
 	
 	ok($page->title eq 'Talk:Title Test Value');
 	ok($page->id == 1);
@@ -44,6 +58,7 @@ sub test_one {
 	ok($page->userid == 1292);
 	ok($$text eq "Text Test Value\n");
 	ok($page->namespace eq 'Talk');
+	ok(! defined($page->categories));
 }
 
 sub test_two {
@@ -56,6 +71,7 @@ sub test_two {
 	ok($page->timestamp eq '2005-07-09T18:41:10Z');
 	ok($page->username eq 'Username Test Value');
 	ok($page->userid == 1292);
+	ok(! defined($page->categories));
 }
 
 sub test_three {
@@ -68,6 +84,7 @@ sub test_three {
 	ok($page->timestamp eq '2005-07-09T18:41:10Z');
 	ok($page->username eq 'Username Test Value');
 	ok($page->userid == 1292);
+	ok(! defined($page->categories));
 }
 
 sub test_four {

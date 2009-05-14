@@ -4,7 +4,6 @@ META.yml # Will be created by "make dist"
 Makefile.PL
 README
 examples/speed_test
-lib/Parse/MediaWikiDump.pm
 t/00-load.t
 t/pages.t
 t/links.t
@@ -13,3 +12,12 @@ t/pages_test.xml
 t/links_test.sql
 t/revisions_test.xml
 t/revisions.t
+lib/Parse/MediaWikiDump/category_link.pm
+lib/Parse/MediaWikiDump/CategoryLinks.pm
+lib/Parse/MediaWikiDump/link.pm
+lib/Parse/MediaWikiDump/Links.pm
+lib/Parse/MediaWikiDump/page.pm
+lib/Parse/MediaWikiDump/Pages.pm
+lib/Parse/MediaWikiDump/Revisions.pm
+lib/Parse/MediaWikiDump/XML.pm
+lib/Parse/MediaWikiDump.pm

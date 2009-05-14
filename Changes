@@ -1,5 +1,13 @@
 Revision history for Parse-MediaWikiDump
 
+0.91	May 13, 2009
+	* Updated documentation to more explicitly list what kind of
+	  dump files each parser object can deal with.
+	* Added dependency on perl 5.8.8 for :utf8 compatibility. 
+	* Split up lib/ into multiple files.
+	* Fix for bug #46054 - using categories method of 
+	  Parse::MediaWikiDump::page object causes script to crash.
+
 0.90    May 07, 2009
 	* Implemented new parsing engine and called it 
 	  Parse::MediaWikiDump::Revisions. Soon it will be replacing
