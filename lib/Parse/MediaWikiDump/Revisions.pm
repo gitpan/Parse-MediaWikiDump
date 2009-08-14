@@ -1,6 +1,8 @@
 package Parse::MediaWikiDump::Revisions;
 
-our $VERSION = '0.91';
+our $VERSION = '0.92';
+
+use 5.8.0;
 
 use strict;
 use warnings;
@@ -12,7 +14,7 @@ use Data::Dumper;
 sub new {
 	my ($class, $source) = @_;
 	my $self = {};
-
+	
 	bless($self, $class);
 
 	$$self{XML} = undef; #holder for XML::Accumulator
@@ -263,3 +265,132 @@ sub save_siteinfo {
 }
 
 1;
+
+__END__
+=head1 NAME
+
+Parse::MediaWikiDump::Revisions - Object capable of processing dump files with multiple revisions per article
+
+=head1 ABOUT
+
+This object is used to access the metadata associated with a MediaWiki instance and provide an iterative interface
+for extracting the indidivual article revisions out of the same. To gurantee that there is only a single
+revision per article use the Parse::MediaWikiDump::Revisions object. 
+
+=head1 SYNOPSIS
+  
+  $pmwd = Parse::MediaWikiDump->new;
+  $revisions = $pmwd->revisions('pages-articles.xml');
+  $revisions = $pmwd->revisions(\*FILEHANDLE);
+  
+  #print the title and id of each article inside the dump file
+  while(defined($page = $revisions->next)) {
+    print "title '", $page->title, "' id ", $page->id, "\n";
+  }
+
+=head1 METHODS
+
+=over 4
+
+=item $revisions->new
+
+Open the specified MediaWiki dump file. If the single argument to this method
+is a string it will be used as the path to the file to open. If the argument
+is a reference to a filehandle the contents will be read from the filehandle as
+specified. 
+
+=item $revisions->next
+
+Returns an instance of the next available Parse::MediaWikiDump::page object or returns undef
+if there are no more articles left.
+
+=item $revisions->sitename
+
+Returns a plain text string that is the name of the MediaWiki instance.
+
+=item $revisions->base
+
+Returns the URL to the instances main article in the form of a string.
+
+=item $revisions->generator
+
+Returns a string containing 'MediaWiki' and a version number of the instance that dumped this file.
+Example: 'MediaWiki 1.14alpha'
+
+=item $revisions->case
+
+Returns a string describing the case sensitivity configured in the instance.
+
+=item $revisions->namespaces
+
+Returns a reference to an array of references. Each reference is to another array with the first
+item being the unique identifier of the namespace and the second element containing a string
+that is the name of the namespace.
+
+=item $revisions->namespaces_names
+
+Returns an array reference the array contains strings of all the namespaces each as an element. 
+
+=item $revisions->current_byte
+
+Returns the number of bytes that has been processed so far
+
+=item $revisions->size
+
+Returns the total size of the dump file in bytes. 
+
+=back
+
+=head1 EXAMPLE
+
+=head2 Extract the article text of each revision of an article using a given title
+
+  #!/usr/bin/perl
+  
+  use strict;
+  use warnings;
+  use Parse::MediaWikiDump;
+  
+  my $file = shift(@ARGV) or die "must specify a MediaWiki dump of the current pages";
+  my $title = shift(@ARGV) or die "must specify an article title";
+  my $pmwd = Parse::MediaWikiDump->new;
+  my $dump = $pmwd->revisions($file);
+  my $found = 0;
+  
+  binmode(STDOUT, ':utf8');
+  binmode(STDERR, ':utf8');
+  
+  #this is the only currently known value but there could be more in the future
+  if ($dump->case ne 'first-letter') {
+    die "unable to handle any case setting besides 'first-letter'";
+  }
+  
+  $title = case_fixer($title);
+  
+  while(my $revision = $dump->next) {
+    if ($revision->title eq $title) {
+      print STDERR "Located text for $title revision ", $revision->revision_id, "\n";
+      my $text = $revision->text;
+      print $$text;
+      
+      $found = 1;
+    }
+  }
+  
+  print STDERR "Unable to find article text for $title\n" unless $found;
+  exit 1;
+  
+  #removes any case sensativity from the very first letter of the title
+  #but not from the optional namespace name
+  sub case_fixer {
+    my $title = shift;
+  
+    #check for namespace
+    if ($title =~ /^(.+?):(.+)/) {
+      $title = $1 . ':' . ucfirst($2);
+    } else {
+      $title = ucfirst($title);
+    }
+  
+    return $title;
+  }

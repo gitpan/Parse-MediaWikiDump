@@ -18,7 +18,7 @@ $mode = 'handle';
 test_all($fh);
 
 sub test_all {
-	$pages = Parse::MediaWikiDump::Pages->new(shift);
+	$pages = Parse::MediaWikiDump->pages(shift);
 
 	test_one();
 	test_two();

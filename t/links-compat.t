@@ -1,13 +1,13 @@
 #!perl 
 
-use Test::Simple tests =>4;
+use Test::Simple tests => 4;
 use strict;
 use warnings;
 use Parse::MediaWikiDump;
 
 my $file = 't/links_test.sql';
 
-my $links = Parse::MediaWikiDump::Links->new($file);
+my $links = Parse::MediaWikiDump->links($file);
 
 my $sum;
 my $last_link;

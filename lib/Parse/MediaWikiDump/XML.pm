@@ -2,6 +2,8 @@
 #testing is done and documentation is written
 package Parse::MediaWikiDump::XML::Accumulator;
 
+our $VERSION = '0.92';
+
 use warnings;
 use strict;
 

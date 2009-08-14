@@ -3,6 +3,7 @@
 use Test::Simple tests => 94;
 use strict;
 use Parse::MediaWikiDump;
+use Data::Dumper;
 
 my $file = 't/revisions_test.xml';
 my $fh;
@@ -18,7 +19,7 @@ $mode = 'handle';
 test_all($fh);
 
 sub test_all {
-	$revisions = Parse::MediaWikiDump::Revisions->new(shift);
+	$revisions = Parse::MediaWikiDump->revisions(shift);
 
 	test_siteinfo();
 	

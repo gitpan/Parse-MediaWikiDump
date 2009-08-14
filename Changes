@@ -1,5 +1,10 @@
 Revision history for Parse-MediaWikiDump
 
+0.92	Apr 15, 2009
+	* Completed documentation for all modules
+	* Added test for backwards compatibility to the pre-factory 
+	  Parse::MediaWikiDump interface
+
 0.91	May 13, 2009
 	* Updated documentation to more explicitly list what kind of
 	  dump files each parser object can deal with.
