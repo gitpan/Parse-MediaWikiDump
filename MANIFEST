@@ -14,6 +14,7 @@ t/links_test.sql
 t/revisions_test.xml
 t/revisions.t
 t/pre-factory.t
+t/pages-single-revision-only.t
 lib/Parse/MediaWikiDump/category_link.pm
 lib/Parse/MediaWikiDump/CategoryLinks.pm
 lib/Parse/MediaWikiDump/link.pm

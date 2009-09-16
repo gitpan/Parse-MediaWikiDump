@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Parse-MediaWikiDump
-version:            0.92
+version:            0.93
 abstract:           Tools to process MediaWiki dump files
 author:
     - Tyler Riddle <triddle@gmail.com>
@@ -11,6 +11,7 @@ configure_requires:
 requires:
     List::Util:         0
     Object::Destroyer:  0
+    Test::Exception:    0
     Test::More:         0
     XML::Parser:        0
 no_index:

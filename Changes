@@ -1,5 +1,9 @@
 Revision history for Parse-MediaWikiDump
 
+0.93	Sep 15, 2009
+	* Made ::Pages a subclass of ::Revisions
+	* Discovered a bug regression: ::Pages and ::Revisions leak memory/are not properly garbage collected
+
 0.92	Apr 15, 2009
 	* Completed documentation for all modules
 	* Added test for backwards compatibility to the pre-factory 

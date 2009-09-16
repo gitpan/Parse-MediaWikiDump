@@ -1,6 +1,6 @@
 package Parse::MediaWikiDump::category_link;
 
-our $VERSION = '0.92';
+our $VERSION = '0.93';
 
 #you must pass in a fully populated link array reference
 sub new {

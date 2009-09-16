@@ -1,6 +1,6 @@
 package Parse::MediaWikiDump::Revisions;
 
-our $VERSION = '0.92';
+our $VERSION = '0.93';
 
 use 5.8.0;
 
@@ -28,6 +28,7 @@ sub new {
 	$self->open($source);
 	$self->init;
 	
+	#return Object::Destroyer($self, 'cleanup');
 	return $self;
 }
 
@@ -105,14 +106,16 @@ sub size {
 
 #private functions with OO interface
 
-#sub cleanup {
-#	my ($self) = @_;
-#	
-#	warn "executing cleanup";
-#	
-##	$self->{EXPAT} = undef;	
-##	$self->{XML} = undef;
-#}
+sub cleanup {
+	my ($self) = @_;
+	
+	warn "executing cleanup";
+	
+	$self->{EXPAT}->setHandlers(Init => undef, Final => undef, Start => undef, 
+		End => undef, Char => undef);
+	$self->{EXPAT}->parse_done;	
+	#$self->{XML} = undef;
+}
 
 sub open {
 	my ($self, $source) = @_;
@@ -137,12 +140,13 @@ sub init {
 	
 	$self->{XML} = $self->new_accumulator_engine;
 	my $expat_bb = $$self{XML}->parser->parse_start();
-	$$self{EXPAT} = Object::Destroyer->new($expat_bb, 'parse_done');
+	#$$self{EXPAT} = Object::Destroyer->new($expat_bb, 'parse_done'); #causes exceptions not to be thrown
+	$$self{EXPAT} = $expat_bb;
 	
 	#load the information from the siteinfo section so it is available before
 	#someone calls ->next
 	while(1) {
-		if (scalar(@{$self->{PAGE_LIST}}) > 1) {
+		if (scalar(@{$self->{PAGE_LIST}}) > 0) {
 			last;
 		}	
 		
@@ -394,3 +398,10 @@ Returns the total size of the dump file in bytes.
   
     return $title;
   }
+  
+=head1 LIMITATIONS
+
+=head2 Memory Leak
+
+This class is not performing proper garbage collection at destruction and will leak memory like crazy if 
+multiple instances of it are created inside one perl script. 

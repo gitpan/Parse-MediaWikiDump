@@ -45,7 +45,7 @@
     <revision>
       <id>47085</id>
       <timestamp>2005-07-09T18:41:10Z</timestamp>
-      <contributor><username>Username Test Value</username><id>1292</id></contributor>
+      <contributor><username>Username Test Value 2</username><id>1292</id></contributor>
       <minor/>
       <comment>Comment Test Value</comment>
       <text xml:space="preserve">#redirect : [[fooooo]]

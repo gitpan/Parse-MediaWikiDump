@@ -1,6 +1,3 @@
-  * Make tests for Pages as thorough as tests for Revisions
-  * Update revisions to make it easier to subclass and change the behavior 
-  * Port Pages over to being a sucblass of Revisions that enforces only a single page per article 
-    revision
+  * Fix memory leak bug
   * Investigate if using pop for removing parsed items from the buffer will make Pages and Revisions faster; 
     if so, add an option for such

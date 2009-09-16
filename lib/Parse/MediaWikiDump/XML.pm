@@ -2,7 +2,7 @@
 #testing is done and documentation is written
 package Parse::MediaWikiDump::XML::Accumulator;
 
-our $VERSION = '0.92';
+our $VERSION = '0.93';
 
 use warnings;
 use strict;
@@ -64,6 +64,7 @@ sub new {
 	$self->{node_stack} = [ $root ];
 	
 	return Object::Destroyer->new($self, 'cleanup');
+	#return $self;
 }
 
 sub cleanup {
@@ -76,10 +77,12 @@ sub cleanup {
 sub init_parser {
 	my ($self) = @_;
 	
+	#warn "init_parser called";
+	
 	my $parser = XML::Parser->new(
 		Handlers => {
-			Init => sub { handle_init_event($self, @_) },
-			Final => sub { handle_final_event($self, @_) },
+			#Init => sub { handle_init_event($self, @_) },
+			#Final => sub { handle_final_event($self, @_) },
 			Start => sub { handle_start_event($self, @_) },
 			End => sub { handle_end_event($self, @_) },
 			Char => sub { handle_char_event($self, @_) },
@@ -120,7 +123,7 @@ sub handle_start_event {
 	my $element_stack = $self->{element_stack};
 	my $node = $self->node;
 	my $matched = $node->{children}->{$element};
-	my $handler;
+	my $handler; 
 	
 	if (! defined($matched)) {
 		die "fatal error - no match for element $element";
