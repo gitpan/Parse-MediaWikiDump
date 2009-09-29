@@ -2,7 +2,7 @@
 #testing is done and documentation is written
 package Parse::MediaWikiDump::XML::Accumulator;
 
-our $VERSION = '0.93';
+our $VERSION = '0.94';
 
 use warnings;
 use strict;
@@ -124,10 +124,6 @@ sub handle_start_event {
 	my $node = $self->node;
 	my $matched = $node->{children}->{$element};
 	my $handler; 
-	
-	if (! defined($matched)) {
-		die "fatal error - no match for element $element";
-	}
 	
 	$handler = $matched->{handlers}->{Start};
 	

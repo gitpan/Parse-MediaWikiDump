@@ -1,5 +1,9 @@
 Revision history for Parse-MediaWikiDump
 
+0.94	Sep 28, 2009
+	* Fix bug 49979 - "redirect in newer Wikipedia dumps" by allowing
+	  unknown tag names to exist
+	
 0.93	Sep 15, 2009
 	* Made ::Pages a subclass of ::Revisions
 	* Discovered a bug regression: ::Pages and ::Revisions leak memory/are not properly garbage collected
