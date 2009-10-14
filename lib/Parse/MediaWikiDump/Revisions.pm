@@ -1,12 +1,13 @@
 package Parse::MediaWikiDump::Revisions;
 
-our $VERSION = '0.94';
+our $VERSION = '0.95';
 
 use 5.8.0;
 
 use strict;
 use warnings;
 use List::Util;
+use Scalar::Util qw(weaken reftype);
 use Object::Destroyer;
 use Data::Dumper;
 
@@ -109,7 +110,7 @@ sub size {
 sub cleanup {
 	my ($self) = @_;
 	
-	warn "executing cleanup";
+	#warn "executing cleanup";
 	
 	$self->{EXPAT}->setHandlers(Init => undef, Final => undef, Start => undef, 
 		End => undef, Char => undef);
@@ -120,7 +121,7 @@ sub cleanup {
 sub open {
 	my ($self, $source) = @_;
 
-	if (ref($source) eq 'GLOB') {
+	if (defined(reftype($source)) && reftype($source) eq 'GLOB') {
 		$$self{SOURCE} = $source;
 	} else {
 		if (! open($$self{SOURCE}, $source)) {
@@ -152,6 +153,9 @@ sub init {
 		
 		$self->parse_more;	
 	}
+	
+	#XML::Accumulator holds a copy of itself
+	weaken($self->{XML});
 }
 
 sub new_accumulator_engine {
@@ -215,7 +219,9 @@ sub parse_more {
                 die "error during read: $!";
         } elsif ($read == 0) {
                 $$self{FINISHED} = 1;
-                $$self{EXPAT} = undef; #Object::Destroyer cleans this up
+                #$$self{EXPAT} = undef; #Object::Destroyer cleans this up
+                $$self{EXPAT}->parse_done;
+                
                 return 0;
         }
 

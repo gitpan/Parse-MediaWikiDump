@@ -2,7 +2,7 @@
 #testing is done and documentation is written
 package Parse::MediaWikiDump::XML::Accumulator;
 
-our $VERSION = '0.94';
+our $VERSION = '0.95';
 
 use warnings;
 use strict;
@@ -41,6 +41,7 @@ use strict;
 use warnings;
 use Carp qw(croak);
 
+use Scalar::Util qw(weaken);
 use XML::Parser;
 use Object::Destroyer;
 
@@ -63,8 +64,8 @@ sub new {
 	$self->{char_dirty} = 0;
 	$self->{node_stack} = [ $root ];
 	
-	return Object::Destroyer->new($self, 'cleanup');
-	#return $self;
+	#return Object::Destroyer->new($self, 'cleanup');
+	return $self;
 }
 
 sub cleanup {
@@ -85,7 +86,7 @@ sub init_parser {
 			#Final => sub { handle_final_event($self, @_) },
 			Start => sub { handle_start_event($self, @_) },
 			End => sub { handle_end_event($self, @_) },
-			Char => sub { handle_char_event($self, @_) },
+			Char => sub { handle_char_event($self, @_); },
 		}
 	);
 	
@@ -153,14 +154,11 @@ sub handle_char_event {
 	my ($self, $expat, $chars) = @_; 
 	
 	$self->{char_buf} .= $chars; 
-	$self->{char_dirty} = 1;
 }
 
 sub flush_chars {
 	my ($self) = @_;
 	my ($handler, $cur_element);
-	
-	return undef unless $self->{char_dirty} == 1;
 	
 	$handler = $self->node->{handlers}->{Character};
 	$cur_element = $self->element;
@@ -172,7 +170,6 @@ sub flush_chars {
 	defined $handler && &$handler($self, $self->{accum}, $self->{char_buf}, @$cur_element);
 		
 	$self->{char_buf} = '';
-	$self->{char_dirty} = 0;
 	
 	return undef;
 }

@@ -1,6 +1,6 @@
 #!perl -w
 
-use Test::Simple tests => 94;
+use Test::Simple tests => 98;
 use strict;
 use Parse::MediaWikiDump;
 use Data::Dumper;
@@ -27,6 +27,7 @@ sub test_all {
 	test_two();
 	test_three();
 	test_four();
+	test_five();
 	
 	ok(! defined($revisions->next));
 }
@@ -42,7 +43,7 @@ sub test_siteinfo {
 	ok($revisions->current_byte != 0);
 	
 	if ($mode eq 'file') {
-		ok($revisions->size == 2783);
+		ok($revisions->size == 3112);
 	} elsif ($mode eq 'handle') {
 		ok(! defined($revisions->size));
 	} else {
@@ -117,3 +118,11 @@ sub test_four {
 	ok($page->namespace eq '');
 	ok($page->title eq 'NotANameSpace:Bar');
 }
+
+#test for Bug 50092
+sub test_five {
+	my $page = $revisions->next;
+	ok($page->title eq 'Bug 50092 Test');
+	ok(defined(${$page->text}));		
+}
+
