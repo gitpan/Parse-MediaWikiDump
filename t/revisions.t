@@ -1,6 +1,6 @@
 #!perl -w
 
-use Test::Simple tests => 98;
+use Test::Simple tests => 100;
 use strict;
 use Parse::MediaWikiDump;
 use Data::Dumper;
@@ -41,6 +41,7 @@ sub test_siteinfo {
 	ok($revisions->namespaces->[0]->[0] == -2);
 	ok($revisions->namespaces_names->[0] eq 'Media');
 	ok($revisions->current_byte != 0);
+	ok($revisions->version eq '0.3');
 	
 	if ($mode eq 'file') {
 		ok($revisions->size == 3112);

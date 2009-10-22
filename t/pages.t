@@ -1,6 +1,6 @@
 #!perl -w
 
-use Test::Simple tests => 94;
+use Test::Simple tests => 96;
 use strict;
 use Parse::MediaWikiDump;
 
@@ -41,6 +41,7 @@ sub test_one {
 	ok($pages->namespaces->[0]->[0] == -2);
 	ok($pages->namespaces_names->[0] eq 'Media');
 	ok($pages->current_byte != 0);
+	ok($pages->version eq '0.3');
 	
 	if ($mode eq 'file') {
 		ok($pages->size == 2874);

@@ -1,9 +1,18 @@
 Revision history for Parse-MediaWikiDump
 
-0.95	
+0.96	Oct 22, 2009
+	* Allowed parsing of 0.4 version XML dump files but not
+	  support for new features
+	* Added in a method to retrieve the version number of
+	  the XML dump file
+
+0.95	Oct 14, 2009
 	* Found and removed a circular reference but it did not
 	  stop the memory leak
-	* Fixed bug 50092
+	* Fixed bug 50092 - some times $page->text would return
+	  a reference to an undefined value
+	* Implemented support for compressed file GLOB objects per
+	  bug 50241
 
 0.94	Sep 28, 2009
 	* Fix bug 49979 - "redirect in newer Wikipedia dumps" by allowing
@@ -11,7 +20,8 @@ Revision history for Parse-MediaWikiDump
 	
 0.93	Sep 15, 2009
 	* Made ::Pages a subclass of ::Revisions
-	* Discovered a bug regression: ::Pages and ::Revisions leak memory/are not properly garbage collected
+	* Discovered a bug regression: ::Pages and ::Revisions leak 
+	  memory/are not properly garbage collected
 
 0.92	Apr 15, 2009
 	* Completed documentation for all modules

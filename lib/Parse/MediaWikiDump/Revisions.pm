@@ -1,6 +1,6 @@
 package Parse::MediaWikiDump::Revisions;
 
-our $VERSION = '0.95';
+our $VERSION = '0.96';
 
 use 5.8.0;
 
@@ -52,6 +52,11 @@ sub next {
 	}
 	
 	die "should not get here";
+}
+
+sub version {
+	my ($self) = @_;
+	return $self->{SITEINFO}{version};
 }
 
 sub sitename {
@@ -165,7 +170,7 @@ sub new_accumulator_engine {
 	my $store_page = $self->{PAGE_LIST};
 	
 	my $root = $f->root;
-	my $mediawiki = $f->node('mediawiki', Start => \&validate_mediawiki_node);
+	my $mediawiki = $f->node('mediawiki', Start => \&handle_mediawiki_node);
 	
 	#stuff for siteinfo
 	my $siteinfo = $f->node('siteinfo', End => sub { %$store_siteinfo = %{ $_[1] } } );
@@ -262,9 +267,15 @@ sub save_namespace_node {
 	push(@{ $accum->{namespaces} }, [$key, $text] );
 }
 
-sub validate_mediawiki_node {
+sub handle_mediawiki_node {
 	my ($engine, $a, $element, $attrs) = @_;
-	die "Only version 0.3 dump files are supported" unless $attrs->{version} eq '0.3';
+	my $version = $attrs->{version};
+	
+	if ($version ne '0.3' && $version ne '0.4') {
+			die "Only version 0.3 and 0.4 dump files are supported";
+	}
+	
+	$a->{version} = $version;
 }
 
 sub save_siteinfo {
@@ -313,6 +324,10 @@ specified.
 
 Returns an instance of the next available Parse::MediaWikiDump::page object or returns undef
 if there are no more articles left.
+
+=item $revisions->version
+
+Returns a plain text string of the dump file format revision number
 
 =item $revisions->sitename
 
