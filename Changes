@@ -1,5 +1,10 @@
 Revision history for Parse-MediaWikiDump
 
+0.97	Oct 23, 2009
+	* Fixed all known memory leaks
+	* No more Object::Destroyer
+	* Cleaned out some old cruft
+
 0.96	Oct 22, 2009
 	* Allowed parsing of 0.4 version XML dump files but not
 	  support for new features

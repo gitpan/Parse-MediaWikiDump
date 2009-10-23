@@ -1,3 +1,1 @@
-  * Fix memory leak bug
-  * Investigate if using pop for removing parsed items from the buffer will make Pages and Revisions faster; 
-    if so, add an option for such
+  * Comment the code

@@ -1,15 +1,18 @@
 package Parse::MediaWikiDump::Pages;
 
-our $VERSION = '0.96';
+our $VERSION = '0.97';
 
 use base qw(Parse::MediaWikiDump::Revisions);
 
 use strict;
 use warnings;
-use Carp;
+use Scalar::Util qw(weaken);
 
 sub new_accumulator_engine {
 	my ($self) = @_;
+	
+	weaken($self);
+	
 	my $f = Parse::MediaWikiDump::XML::Accumulator->new;
 	my $store_siteinfo = $self->{SITEINFO};
 	my $store_page = $self->{PAGE_LIST};
@@ -34,7 +37,7 @@ sub new_accumulator_engine {
 		Start => sub { $_[1]->{minor} = 0 }, 
 		End => sub { 
 			if (defined($_[1]->{seen_revision})) {
-				die "only one revision per page is allowed\n";
+				$self->{DIE_REQUESTED} = "only one revision per page is allowed";
 			}
 			
 			$_[1]->{seen_revision} = 1;
@@ -292,7 +295,8 @@ Returns the total size of the dump file in bytes.
 
 =head1 LIMITATIONS
 
-=head2 Memory Leak
+=head2 Version 0.4
 
-This class is not performing proper garbage collection at destruction and will leak memory like crazy if 
-multiple instances of it are created inside one perl script. 
+This class was updated to support version 0.4 dump files from
+a MediaWiki instance but it does not currently support any of
+the new information available in those files. 

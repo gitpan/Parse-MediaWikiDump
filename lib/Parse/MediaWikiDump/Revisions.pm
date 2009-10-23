@@ -1,15 +1,24 @@
 package Parse::MediaWikiDump::Revisions;
 
-our $VERSION = '0.96';
+our $VERSION = '0.97';
 
 use 5.8.0;
 
 use strict;
 use warnings;
+use Carp;
+
 use List::Util;
 use Scalar::Util qw(weaken reftype);
-use Object::Destroyer;
 use Data::Dumper;
+
+sub DESTROY {
+	my ($self) = @_;
+	
+	if (! $self->{FINISHED}) {
+		$self->{EXPAT}->parse_done;
+	}
+}
 
 #public methods
 sub new {
@@ -29,7 +38,6 @@ sub new {
 	$self->open($source);
 	$self->init;
 	
-	#return Object::Destroyer($self, 'cleanup');
 	return $self;
 }
 
@@ -112,17 +120,6 @@ sub size {
 
 #private functions with OO interface
 
-sub cleanup {
-	my ($self) = @_;
-	
-	#warn "executing cleanup";
-	
-	$self->{EXPAT}->setHandlers(Init => undef, Final => undef, Start => undef, 
-		End => undef, Char => undef);
-	$self->{EXPAT}->parse_done;	
-	#$self->{XML} = undef;
-}
-
 sub open {
 	my ($self, $source) = @_;
 
@@ -146,21 +143,13 @@ sub init {
 	
 	$self->{XML} = $self->new_accumulator_engine;
 	my $expat_bb = $$self{XML}->parser->parse_start();
-	#$$self{EXPAT} = Object::Destroyer->new($expat_bb, 'parse_done'); #causes exceptions not to be thrown
 	$$self{EXPAT} = $expat_bb;
 	
 	#load the information from the siteinfo section so it is available before
 	#someone calls ->next
-	while(1) {
-		if (scalar(@{$self->{PAGE_LIST}}) > 0) {
-			last;
-		}	
-		
+	while(scalar(@{$self->{PAGE_LIST}}) < 1) {
 		$self->parse_more;	
 	}
-	
-	#XML::Accumulator holds a copy of itself
-	weaken($self->{XML});
 }
 
 sub new_accumulator_engine {
@@ -224,7 +213,6 @@ sub parse_more {
                 die "error during read: $!";
         } elsif ($read == 0) {
                 $$self{FINISHED} = 1;
-                #$$self{EXPAT} = undef; #Object::Destroyer cleans this up
                 $$self{EXPAT}->parse_done;
                 
                 return 0;
@@ -232,7 +220,11 @@ sub parse_more {
 
         $$self{BYTE} += $read;
         $$self{EXPAT}->parse_more($buf);
-
+        
+    	if ($self->{DIE_REQUESTED}) {
+			die "$self->{DIE_REQUESTED}\n";
+		}
+        
         return 1;
 }
 
@@ -249,14 +241,6 @@ sub get_category_anchor {
 	
 	return undef;
 }
-
-#sub save_page {
-#	my ($page, $save_to) = @_;
-#	my %page = %$page; #make a local copy
-#	
-#	push(@{ $self->{PAGE_LIST} }, \%page);
-#}
-
 
 #helper functions that the xml accumulator uses
 sub save_namespace_node {
@@ -422,7 +406,8 @@ Returns the total size of the dump file in bytes.
   
 =head1 LIMITATIONS
 
-=head2 Memory Leak
+=head2 Version 0.4
 
-This class is not performing proper garbage collection at destruction and will leak memory like crazy if 
-multiple instances of it are created inside one perl script. 
+This class was updated to support version 0.4 dump files from
+a MediaWiki instance but it does not currently support any of
+the new information available in those files. 

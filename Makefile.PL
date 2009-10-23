@@ -11,10 +11,9 @@ WriteMakefile(
     PL_FILES            => {},
     PREREQ_PM => {
     'Test::More' => 0,
+    'Test::Exception' => 0,
     'XML::Parser' => 0,
     'List::Util' => 0,
-    'Object::Destroyer' => 0,
-    'Test::Exception' => 0,
     'Scalar::Util' => 0,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },

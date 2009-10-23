@@ -1,8 +1,20 @@
 #this is set to become a new module on CPAN after
 #testing is done and documentation is written
+
+#this module is a thin wrapper around XML::Accumulator that
+#provides a tree interface for the event handlers. The engine
+#follows the tree as it receives events from XML::Accumulator
+#so that context can be pulled out from the location in the 
+#tree.
+
+#Handlers for this module are also registered as callbacks but
+#exist at a specific node on the tree. Each handler is invoked
+#with the same information that came from the XML::Parser event
+#but is also given an additional argument that is an accumulator
+#variable to store data in. 
 package Parse::MediaWikiDump::XML::Accumulator;
 
-our $VERSION = '0.95';
+our $VERSION = '0.97';
 
 use warnings;
 use strict;
@@ -43,7 +55,6 @@ use Carp qw(croak);
 
 use Scalar::Util qw(weaken);
 use XML::Parser;
-use Object::Destroyer;
 
 sub new {
 	my ($class, $root, $accum) = @_;
@@ -61,24 +72,16 @@ sub new {
 	$self->{element_stack} = [];
 	$self->{accum} = $accum;
 	$self->{char_buf} = '';
-	$self->{char_dirty} = 0;
 	$self->{node_stack} = [ $root ];
 	
-	#return Object::Destroyer->new($self, 'cleanup');
 	return $self;
-}
-
-sub cleanup {
-	my ($self) = @_;
-	
-	$self->parser->setHandlers(Init => undef, Final => undef, Start => undef, 
-		End => undef, Char => undef);
 }
 
 sub init_parser {
 	my ($self) = @_;
 	
-	#warn "init_parser called";
+	#stop a giant memory leak
+	weaken($self);
 	
 	my $parser = XML::Parser->new(
 		Handlers => {
