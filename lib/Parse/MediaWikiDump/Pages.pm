@@ -1,6 +1,6 @@
 package Parse::MediaWikiDump::Pages;
 
-our $VERSION = '0.97';
+our $VERSION = '0.98';
 
 use base qw(Parse::MediaWikiDump::Revisions);
 
@@ -8,6 +8,9 @@ use strict;
 use warnings;
 use Scalar::Util qw(weaken);
 
+#the only difference between this class and ::Revisions
+#is that this class enforces a single revision per each
+#page node
 sub new_accumulator_engine {
 	my ($self) = @_;
 	
@@ -76,11 +79,7 @@ sub handle_mediawiki_node {
 }
 
 sub save_namespace_node {
-	my ($parser, $accum, $text, $element, $attrs) = @_;
-	my $key = $attrs->{key};
-	my $namespaces = $accum->{namespaces};
-	
-	push(@{ $accum->{namespaces} }, [$key, $text] );
+	return Parse::MediaWikiDump::Revisions::save_namespace_node(@_);
 }
 
 

@@ -25,20 +25,11 @@ sub namespace {
 	my $title = $self->title;
 	my $namespace = '';
 	
-	#warn "size " . scalar(@{ $self->{NAMESPACES} });
-	
 	return $$self{CACHE}{namespace} if defined $$self{CACHE}{namespace};
 	
 	if ($title =~ m/^([^:]+):(.*)/) {
-#		warn "got a namespace candidate: $1 - $2";
-
 		foreach (@{ $self->{NAMESPACES} } ) {
 			my ($num, $name) = @$_;
-			
-#			warn $name;
-
-#			warn "$1 $name";
-			
 			if ($1 eq $name) {
 				$namespace = $1;
 				last;
@@ -46,10 +37,6 @@ sub namespace {
 		}
 	}
 
-#	warn "this function is still broken";
-
-#	warn "namespace: $namespace";
-	
 	$$self{CACHE}{namespace} = $namespace;
 
 	return $namespace;

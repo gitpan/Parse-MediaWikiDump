@@ -1,6 +1,6 @@
 #!perl -w
 
-use Test::Simple tests => 100;
+use Test::Simple tests => 102;
 use strict;
 use Parse::MediaWikiDump;
 use Data::Dumper;
@@ -80,11 +80,11 @@ sub test_two {
 
 	ok($page->title eq 'Title Test Value #2');
 	ok($page->id == 2);
-	ok($page->revision_id eq '47085');
+	ok($page->revision_id eq '47085'); 
 	ok($page->username eq 'Username Test Value 2');
 	ok($page->timestamp eq '2006-07-09T18:41:10Z');
 	ok($page->userid == 12);
-	ok(! $page->minor);
+	ok($page->minor);
 	ok($$text eq "#redirect : [[fooooo]]");
 	ok($page->namespace eq '');
 	ok($page->redirect eq 'fooooo');
@@ -102,6 +102,7 @@ sub test_three {
 	ok($page->timestamp eq '2005-07-09T18:41:10Z');
 	ok($page->username eq 'Username Test Value');
 	ok($page->userid == 1292);
+	ok(! $page->minor);
 }
 
 sub test_four {

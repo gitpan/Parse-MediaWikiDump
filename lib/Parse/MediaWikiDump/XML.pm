@@ -71,7 +71,7 @@ sub new {
 	$self->{root} = $root;
 	$self->{element_stack} = [];
 	$self->{accum} = $accum;
-	$self->{char_buf} = '';
+	$self->{char_buf} = [];
 	$self->{node_stack} = [ $root ];
 	
 	return $self;
@@ -156,7 +156,7 @@ sub handle_end_event {
 sub handle_char_event {
 	my ($self, $expat, $chars) = @_; 
 	
-	$self->{char_buf} .= $chars; 
+	push(@{$self->{char_buf}}, $chars); 
 }
 
 sub flush_chars {
@@ -170,9 +170,9 @@ sub flush_chars {
 		$cur_element = [];
 	}
 	
-	defined $handler && &$handler($self, $self->{accum}, $self->{char_buf}, @$cur_element);
+	defined $handler && &$handler($self, $self->{accum}, join('', @{$self->{char_buf}}), @$cur_element);
 		
-	$self->{char_buf} = '';
+	$self->{char_buf} = [];
 	
 	return undef;
 }

@@ -1,6 +1,6 @@
 package Parse::MediaWikiDump::Revisions;
 
-our $VERSION = '0.97';
+our $VERSION = '0.98';
 
 use 5.8.0;
 
@@ -48,6 +48,8 @@ sub next {
 	
 	my $page;
 	
+	#look for an available page and if one isn't
+	#there then parse more XML
 	while(1) {
 		$page = shift(@{ $self->{PAGE_LIST} } );
 		
@@ -148,7 +150,7 @@ sub init {
 	#load the information from the siteinfo section so it is available before
 	#someone calls ->next
 	while(scalar(@{$self->{PAGE_LIST}}) < 1) {
-		$self->parse_more;	
+		die "hit end of document" unless $self->parse_more;	
 	}
 }
 
@@ -218,6 +220,10 @@ sub parse_more {
                 return 0;
         }
 
+		#expat has a bug where the current_byte
+		#value overflows around 2 gigabytes
+		#so we track how much data has been
+		#processed ourselves
         $$self{BYTE} += $read;
         $$self{EXPAT}->parse_more($buf);
         
@@ -243,6 +249,7 @@ sub get_category_anchor {
 }
 
 #helper functions that the xml accumulator uses
+
 sub save_namespace_node {
 	my ($parser, $accum, $text, $element, $attrs) = @_;
 	my $key = $attrs->{key};

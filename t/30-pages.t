@@ -4,6 +4,8 @@ use Test::Simple tests => 96;
 use strict;
 use Parse::MediaWikiDump;
 
+use Data::Dumper;
+
 my $file = 't/pages_test.xml';
 my $fh;
 my $pages;
@@ -29,11 +31,6 @@ sub test_all {
 }
 
 sub test_one {
-	my $page = $pages->next;
-	my $text = $page->text;
-
-	ok(defined($page));
-
 	ok($pages->sitename eq 'Sitename Test Value');
 	ok($pages->base eq 'Base Test Value');
 	ok($pages->generator eq 'Generator Test Value');
@@ -50,7 +47,11 @@ sub test_one {
 	} else {
 		die "invalid test mode";
 	}
-	
+
+	my $page = $pages->next;
+	my $text = $page->text;
+
+	ok(defined($page));
 	
 	ok($page->title eq 'Talk:Title Test Value');
 	ok($page->id == 1);

@@ -10,6 +10,8 @@ WriteMakefile(
     ABSTRACT_FROM       => 'lib/Parse/MediaWikiDump.pm',
     PL_FILES            => {},
     PREREQ_PM => {
+    'PadWalker' => 0,
+    'Test::Memory::Cycle' => 0,
     'Test::More' => 0,
     'Test::Exception' => 0,
     'XML::Parser' => 0,

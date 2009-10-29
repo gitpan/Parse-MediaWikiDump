@@ -1,5 +1,11 @@
 Revision history for Parse-MediaWikiDump
 
+0.98 	Oct 28, 2009
+	* Bumped processing speed back up
+    * Fixed possible infinite loop scenario	
+    * Ordered tests
+	* Added test to find circular references
+
 0.97	Oct 23, 2009
 	* Fixed all known memory leaks
 	* No more Object::Destroyer
