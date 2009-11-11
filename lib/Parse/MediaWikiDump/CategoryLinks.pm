@@ -1,6 +1,6 @@
 package Parse::MediaWikiDump::CategoryLinks;
 
-our $VERSION = '0.94';
+our $VERSION = '1.0.1';
 
 use strict;
 use warnings;

@@ -1,6 +1,6 @@
 package Parse::MediaWikiDump::Revisions;
 
-our $VERSION = '0.98';
+our $VERSION = '1.0.1';
 
 use 5.8.0;
 
