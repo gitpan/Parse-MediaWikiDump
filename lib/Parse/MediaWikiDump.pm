@@ -1,5 +1,5 @@
 package Parse::MediaWikiDump;
-our $VERSION = '1.0.0';
+our $VERSION = '1.01';
 
 use Parse::MediaWikiDump::XML;
 use Parse::MediaWikiDump::Revisions;

@@ -1,5 +1,8 @@
 Revision history for Parse-MediaWikiDump
 
+1.01	Nov 11, 2009
+	* CPAN indexer did not like previous version number
+
 1.0.0	Nov 11, 2009
 	* Stable status achieved	
 	* Slight speed tweak on character handler for XML
