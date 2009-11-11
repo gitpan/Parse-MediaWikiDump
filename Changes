@@ -1,9 +1,17 @@
 Revision history for Parse-MediaWikiDump
 
+1.0.0	Nov 11, 2009
+	* Stable status achieved	
+	* Slight speed tweak on character handler for XML
+	  parser
+	* Added dependency on Devel::Cycle 1.11 as 1.10
+	  causes a false negative to be thrown on the 
+	  memory leak test
+
 0.98 	Oct 28, 2009
 	* Bumped processing speed back up
-    * Fixed possible infinite loop scenario	
-    * Ordered tests
+	* Fixed possible infinite loop scenario	
+	* Ordered tests
 	* Added test to find circular references
 
 0.97	Oct 23, 2009

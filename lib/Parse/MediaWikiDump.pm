@@ -1,5 +1,5 @@
 package Parse::MediaWikiDump;
-our $VERSION = '0.98';
+our $VERSION = '1.0.0';
 
 use Parse::MediaWikiDump::XML;
 use Parse::MediaWikiDump::Revisions;
@@ -199,6 +199,12 @@ Parse::MediaWikiDump - Tools to process MediaWiki dump files
 
 This software suite provides the tools needed to process the contents of the XML page 
 dump files and the SQL based links dump file.
+
+=head1 STATUS
+
+This software module is stable - there will not be any more API changes nor will there
+be additional features added. Bugs will be fixed but further development effort will be
+centered around a replacement for this module.
 
 =head1 USAGE
 

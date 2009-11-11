@@ -11,6 +11,7 @@ WriteMakefile(
     PL_FILES            => {},
     PREREQ_PM => {
     'PadWalker' => 0,
+    'Devel::Cycle' => '1.11',
     'Test::Memory::Cycle' => 0,
     'Test::More' => 0,
     'Test::Exception' => 0,

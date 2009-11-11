@@ -14,8 +14,6 @@
 #variable to store data in. 
 package Parse::MediaWikiDump::XML::Accumulator;
 
-our $VERSION = '0.97';
-
 use warnings;
 use strict;
 
@@ -154,9 +152,7 @@ sub handle_end_event {
 }
 
 sub handle_char_event {
-	my ($self, $expat, $chars) = @_; 
-	
-	push(@{$self->{char_buf}}, $chars); 
+	push(@{$_[0]->{char_buf}}, $_[2]); 
 }
 
 sub flush_chars {

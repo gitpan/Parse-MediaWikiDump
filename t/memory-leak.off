@@ -17,6 +17,9 @@ find_cycle($dump1);
 while ($i++ < $NUM_TESTS) {
 	my $dump = Parse::MediaWikiDump->pages('t/pages_test.xml');
 
-#	$dump->next;
 	while($dump->next) { }
+	
+	$dump = Parse::MediaWikiDump->pages('t/pages_test.xml');
+
+	$dump->next;
 }
