@@ -15,6 +15,7 @@ WriteMakefile(
     'Test::Memory::Cycle' => 0,
     'Test::More' => 0,
     'Test::Exception' => 0,
+    'Test::Warn' => 0,
     'XML::Parser' => 0,
     'List::Util' => 0,
     'Scalar::Util' => 0,

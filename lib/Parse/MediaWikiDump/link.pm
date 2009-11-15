@@ -1,6 +1,6 @@
 package Parse::MediaWikiDump::link;
 
-our $VERSION = '1.0.1';
+our $VERSION = '1.0.2';
 
 #you must pass in a fully populated link array reference
 sub new {
