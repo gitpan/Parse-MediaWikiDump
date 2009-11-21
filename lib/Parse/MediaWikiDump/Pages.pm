@@ -1,6 +1,6 @@
 package Parse::MediaWikiDump::Pages;
 
-our $VERSION = '1.0.2';
+our $VERSION = '1.0.3';
 
 use base qw(Parse::MediaWikiDump::Revisions);
 

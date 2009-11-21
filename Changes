@@ -1,5 +1,11 @@
 Revision history for Parse-MediaWikiDump
 
+1.0.3	Nov 21, 2009
+	* Fixed bug #51607 "Build failed CPAN smoke test for 
+	  for i686pc solaris" by specifying minimum version 
+	  numbers for all dependencies in Makefile.PL.
+	
+
 1.0.2	Nov 15, 2009
 	* Fixed bug #51461 "Warnings During Build" - now
 	  the test process squelches the harmless 
@@ -85,7 +91,8 @@ Revision history for Parse-MediaWikiDump
 	* Removed all instances of shift() from the code.
 
 0.40	Jun 21, 2006
-	* Increased processing speed by around 40%!
+	* Increased processing speed by around 40%! Thank you
+	  Andrew Rodland. 
 
 0.33	Jun 18, 2006
 	* Added current_byte and size methods to page dumper.

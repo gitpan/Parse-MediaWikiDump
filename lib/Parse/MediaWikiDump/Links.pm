@@ -1,6 +1,6 @@
 package Parse::MediaWikiDump::Links;
 
-our $VERSION = '1.0.2';
+our $VERSION = '1.0.3';
 
 use strict;
 use warnings;
