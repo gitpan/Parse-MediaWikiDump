@@ -1,6 +1,6 @@
 #!perl -w
 
-use Test::Simple tests => 102;
+use Test::Simple tests => 114;
 use strict;
 use Parse::MediaWikiDump;
 use Data::Dumper;
@@ -28,6 +28,7 @@ sub test_all {
 	test_three();
 	test_four();
 	test_five();
+	test_six();
 	
 	ok(! defined($revisions->next));
 }
@@ -44,7 +45,7 @@ sub test_siteinfo {
 	ok($revisions->version eq '0.3');
 	
 	if ($mode eq 'file') {
-		ok($revisions->size == 3112);
+		ok($revisions->size == 3570);
 	} elsif ($mode eq 'handle') {
 		ok(! defined($revisions->size));
 	} else {
@@ -126,5 +127,18 @@ sub test_five {
 	my $page = $revisions->next;
 	ok($page->title eq 'Bug 50092 Test');
 	ok(defined(${$page->text}));		
+}
+
+#test for bug 53361
+sub test_six {
+	my $page = $revisions->next;
+	ok($page->title eq 'Test for bug 53361');
+	ok($page->username eq 'Ben-Zin');
+	ok(! defined($page->userip));
+	
+	$page = $revisions->next;
+	ok($page->title eq 'Test for bug 53361');
+	ok($page->userip eq '62.104.212.74');
+	ok(! defined($page->username));
 }
 

@@ -1,5 +1,5 @@
 package Parse::MediaWikiDump;
-our $VERSION = '1.0.3';
+our $VERSION = '1.0.4';
 
 use Parse::MediaWikiDump::XML;
 use Parse::MediaWikiDump::Revisions;
@@ -204,7 +204,7 @@ dump files and the SQL based links dump file.
 
 This software module is stable - there will not be any more API changes nor will there
 be additional features added. Bugs will be fixed but further development effort will be
-centered around a replacement for this module.
+centered around a replacement for this module: MediaWiki::DumpFile
 
 =head1 USAGE
 

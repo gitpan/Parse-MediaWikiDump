@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::Memory::Cycle tests => 12;
+use Test::Memory::Cycle tests => 15;
 use Test::Warn;
 
 use Parse::MediaWikiDump;

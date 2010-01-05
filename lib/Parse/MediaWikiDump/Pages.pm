@@ -1,6 +1,6 @@
 package Parse::MediaWikiDump::Pages;
 
-our $VERSION = '1.0.3';
+our $VERSION = '1.0.4';
 
 use base qw(Parse::MediaWikiDump::Revisions);
 
@@ -52,7 +52,7 @@ sub new_accumulator_engine {
 	my $time = $f->textcapture('timestamp');
 	my $contributor = $f->node('contributor');
 	my $username = $f->textcapture('username');
-	my $ip = $f->textcapture('ip');
+	my $ip = $f->textcapture('ip', 'userip');
 	my $contrib_id = $f->textcapture('id', 'userid');
 	my $comment = $f->textcapture('comment');
 	my $text = $f->textcapture('text');
@@ -81,8 +81,6 @@ sub handle_mediawiki_node {
 sub save_namespace_node {
 	return Parse::MediaWikiDump::Revisions::save_namespace_node(@_);
 }
-
-
 
 1;
 

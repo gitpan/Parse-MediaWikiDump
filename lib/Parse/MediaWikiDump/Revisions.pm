@@ -1,6 +1,6 @@
 package Parse::MediaWikiDump::Revisions;
 
-our $VERSION = '1.0.3';
+our $VERSION = '1.0.4';
 
 use 5.8.0;
 
@@ -177,13 +177,13 @@ sub new_accumulator_engine {
 	my $title = $f->textcapture('title');
 	my $id = $f->textcapture('id');
 	my $revision = $f->node('revision', 
-		Start => sub { $_[1]->{minor} = 0 }, End => sub { push(@$store_page, { %{ $_[1] } } ) } );
+		Start => \&handle_revision_node_start, End => sub { push(@$store_page, { %{ $_[1] } } ) } );
 	my $rev_id = $f->textcapture('id', 'revision_id');
 	my $minor = $f->node('minor', Start => sub { $_[1]->{minor} = 1 } );
 	my $time = $f->textcapture('timestamp');
 	my $contributor = $f->node('contributor');
 	my $username = $f->textcapture('username');
-	my $ip = $f->textcapture('ip');
+	my $ip = $f->textcapture('ip', 'userip');
 	my $contrib_id = $f->textcapture('id', 'userid');
 	my $comment = $f->textcapture('comment');
 	my $text = $f->textcapture('text');
@@ -267,6 +267,15 @@ sub handle_mediawiki_node {
 	}
 	
 	$a->{version} = $version;
+}
+
+sub handle_revision_node_start { 
+	my (undef, $a) = @_;
+	
+	$a->{minor} = 0;
+	delete($a->{username});
+	delete($a->{userid});
+	delete($a->{userip});
 }
 
 sub save_siteinfo {

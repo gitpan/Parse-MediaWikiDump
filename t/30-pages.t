@@ -1,6 +1,6 @@
 #!perl -w
 
-use Test::Simple tests => 96;
+use Test::Simple tests => 108;
 use strict;
 use Parse::MediaWikiDump;
 
@@ -26,6 +26,7 @@ sub test_all {
 	test_two();
 	test_three();
 	test_four();
+	test_five();
 
 	ok(! defined($pages->next));
 }
@@ -41,7 +42,7 @@ sub test_one {
 	ok($pages->version eq '0.3');
 	
 	if ($mode eq 'file') {
-		ok($pages->size == 2874);
+		ok($pages->size == 3100);
 	} elsif ($mode eq 'handle') {
 		ok(! defined($pages->size))
 	} else {
@@ -109,4 +110,16 @@ sub test_four {
 	#test for bug 36255
 	ok($page->namespace eq '');
 	ok($page->title eq 'NotANameSpace:Bar');
+}
+
+sub test_five {
+	my $page = $pages->next;
+	
+	ok(defined($page));
+	
+	ok($page->id == 5);
+	ok($page->title eq 'Moar Tests');
+	ok(! defined($page->username));
+	ok(! defined($page->userid));
+	ok($page->userip eq '62.104.212.74');
 }

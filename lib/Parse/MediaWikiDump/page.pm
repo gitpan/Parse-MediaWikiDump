@@ -1,6 +1,6 @@
 package Parse::MediaWikiDump::page;
 
-our $VERSION = '1.0.3';
+our $VERSION = '1.0.4';
 
 use strict;
 use warnings;
@@ -111,6 +111,11 @@ sub userid {
 	return $$self{DATA}{userid};
 }
 
+sub userip {
+	my ($self) = @_;
+	return $$self{DATA}{userip};
+}
+
 sub minor {
 	my ($self) = @_;
 	return $$self{DATA}{minor};
@@ -184,11 +189,15 @@ Returns a string in the following format: 2005-07-09T18:41:10Z
   
 =item $page->username
 
-Returns a string of the username responsible for this specific revision of the article
+Returns a string of the username responsible for this specific revision of the article or undef if the editor was anonymous
   
 =item $page->userid
 
-Returns a number that is the id for the user returned by $page->username
+Returns a number that is the id for the user returned by $page->username or undef if the editor was anonymous
+
+=item $page->userip
+
+Returns a string of the IP of the editor if the edit was anonymous or undef otherwise
   
 =item $page->minor
 

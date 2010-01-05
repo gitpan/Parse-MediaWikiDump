@@ -84,4 +84,17 @@
     </revision>
 </page>
 
+<page>
+  <title>Moar Tests</title>
+  <id>5</id>
+	<revision>
+		<id>38847</id>
+		<timestamp>2002-10-31T14:53:37Z</timestamp>
+		<contributor>
+			<ip>62.104.212.74</ip>
+		</contributor>
+		<text id="38847" />
+	</revision>
+</page>
+
 </mediawiki>

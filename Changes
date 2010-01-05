@@ -1,11 +1,16 @@
 Revision history for Parse-MediaWikiDump
 
+1.0.4	Jan 04, 2010
+	* Fixed bug #53361: Incorrectly assigned usernames 
+	  with anon edits
+	* Added support for getting access to IP of anonymous
+	  edits
+
 1.0.3	Nov 21, 2009
 	* Fixed bug #51607 "Build failed CPAN smoke test for 
 	  for i686pc solaris" by specifying minimum version 
 	  numbers for all dependencies in Makefile.PL.
 	
-
 1.0.2	Nov 15, 2009
 	* Fixed bug #51461 "Warnings During Build" - now
 	  the test process squelches the harmless 

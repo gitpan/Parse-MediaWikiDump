@@ -88,4 +88,29 @@
     </revision>
 </page>
 
+<page>
+	<title>Test for bug 53361</title>
+	<id>145</id>
+
+	<revision>
+		<id>38841</id>
+		<timestamp>2002-09-08T22:15:32Z</timestamp>
+		<contributor>
+			<username>Ben-Zin</username>
+			<id>9</id>
+		</contributor>
+	<minor/>
+	<comment>en: </comment>
+	<text id="38841" />
+	</revision>
+	<revision>
+		<id>38847</id>
+		<timestamp>2002-10-31T14:53:37Z</timestamp>
+		<contributor>
+			<ip>62.104.212.74</ip>
+		</contributor>
+		<text id="38847" />
+	</revision>
+</page>
+
 </mediawiki>
