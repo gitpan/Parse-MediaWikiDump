@@ -1,5 +1,5 @@
 package Parse::MediaWikiDump;
-our $VERSION = '1.0.4';
+our $VERSION = '1.0.5_01';
 
 use Parse::MediaWikiDump::XML;
 use Parse::MediaWikiDump::Revisions;
@@ -202,9 +202,11 @@ dump files and the SQL based links dump file.
 
 =head1 STATUS
 
-This software module is stable - there will not be any more API changes nor will there
-be additional features added. Bugs will be fixed but further development effort will be
-centered around a replacement for this module: MediaWiki::DumpFile
+This software is being RETIRED - MediaWiki::DumpFile is the official successor to
+Parse::MediaWikiDump and includes a compatibility library called 
+MediaWiki::DumpFile::Compat that is API compatible with this module. Please
+begin testing MediaWiki::DumpFile::Compat and report success or failure
+to the author of this module. 
 
 =head1 USAGE
 

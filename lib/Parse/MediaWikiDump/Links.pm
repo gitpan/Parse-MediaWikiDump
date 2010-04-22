@@ -122,6 +122,14 @@ for extracting the indidivual article links to the same. Objects returned are an
     print 'from ', $link->from, ' to ', $link->namespace, ':', $link->to, "\n";
   }
 
+=head1 STATUS
+
+This software is being RETIRED - MediaWiki::DumpFile is the official successor to
+Parse::MediaWikiDump and includes a compatibility library called 
+MediaWiki::DumpFile::Compat that is API compatible with this module. Please
+begin testing MediaWiki::DumpFile::Compat and report success or failure
+to the author of this module. 
+
 =head1 METHODS
 
 =over 4

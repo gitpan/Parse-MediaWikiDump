@@ -1,5 +1,8 @@
 Revision history for Parse-MediaWikiDump
 
+1.0.5	Apr 21, 1020 
+	* Updated docs pointing people to MediaWiki::DumpFile::Compat
+
 1.0.4	Jan 04, 2010
 	* Fixed bug #53361: Incorrectly assigned usernames 
 	  with anon edits
