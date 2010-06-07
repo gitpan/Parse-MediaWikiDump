@@ -1,6 +1,10 @@
 Revision history for Parse-MediaWikiDump
 
-1.0.5	Apr 21, 1020 
+1.0.6	Jun 07, 2010
+	* Fix for bug #58196 - error "not a MediaWiki link dunp file" due 
+	  to absence of 'LOCK TABLES ...' line in link dump file?
+
+1.0.5	Apr 21, 2010 
 	* Updated docs pointing people to MediaWiki::DumpFile::Compat
 
 1.0.4	Jan 04, 2010

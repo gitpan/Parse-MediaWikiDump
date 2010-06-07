@@ -36,6 +36,14 @@ Parse::MediaWikiDump::link - Object representing a link from one article to anot
 
 This object is used to access the data associated with each individual link between articles in a MediaWiki instance. 
 
+=head1 STATUS
+
+This software is being RETIRED - MediaWiki::DumpFile is the official successor to
+Parse::MediaWikiDump and includes a compatibility library called 
+MediaWiki::DumpFile::Compat that is API compatible with this module. Please
+begin testing MediaWiki::DumpFile::Compat and report success or failure
+to the author of this module. 
+
 =head1 METHODS
 
 =over 4

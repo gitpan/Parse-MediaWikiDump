@@ -1,6 +1,9 @@
 package Parse::MediaWikiDump::Links;
 
-our $VERSION = '1.0.3';
+#this needs to be fully replaced by MediaWiki::DumpFile::Compat
+#because it uses a much more correct SQL parser
+
+our $VERSION = '1.0.6';
 
 use strict;
 use warnings;
@@ -13,7 +16,8 @@ sub new {
 	bless($self, $class);
 
 	$self->open($source);
-	$self->init;
+	#fix for bug 58196 
+	#$self->init;
 
 	return $self;
 }

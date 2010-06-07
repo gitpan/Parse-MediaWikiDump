@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Parse-MediaWikiDump
-version:            1.0.5_01
+version:            1.0.6_01
 abstract:           Tools to process MediaWiki dump files
 author:
     - Tyler Riddle <triddle@gmail.com>
