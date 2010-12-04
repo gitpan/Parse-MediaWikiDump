@@ -22,8 +22,23 @@ sub DESTROY {
 
 #public methods
 sub new {
-	my ($class, $source) = @_;
+	my ($class, @args) = @_;
 	my $self = {};
+	my $source;
+	
+	if (scalar(@args) == 0) {
+		die "you must specify an argument to new()";
+	} elsif (scalar(@args) == 1) {
+		$source = $args[0];
+	} else {
+		my %conf = @args;
+		
+		if (! defined($conf{input})) {
+			die "input is a required parameter to new()";
+		}
+		
+		$source = $conf{input};
+	}
 	
 	bless($self, $class);
 

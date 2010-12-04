@@ -1,8 +1,11 @@
 Revision history for Parse-MediaWikiDump
 
-1.0.6	Jun 07, 2010
+1.0.6	Dec 04, 2010
 	* Fix for bug #58196 - error "not a MediaWiki link dunp file" due 
 	  to absence of 'LOCK TABLES ...' line in link dump file?
+	* Added option to pass input to ::Pages constructor via named parameters so
+	  that MediaWiki::DumpFile::Compat and ::Pages share the same API 
+	* Software is nearly retired, only need more testing on MediaWiki::DumpFile::Compat
 
 1.0.5	Apr 21, 2010 
 	* Updated docs pointing people to MediaWiki::DumpFile::Compat
