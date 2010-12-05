@@ -129,10 +129,11 @@ for extracting the indidivual article links to the same. Objects returned are an
 =head1 STATUS
 
 This software is being RETIRED - MediaWiki::DumpFile is the official successor to
-Parse::MediaWikiDump and includes a compatibility library called 
-MediaWiki::DumpFile::Compat that is API compatible with this module. Please
-begin testing MediaWiki::DumpFile::Compat and report success or failure
-to the author of this module. 
+Parse::MediaWikiDump and includes a compatibility library called MediaWiki::DumpFile::Compat
+that is 100% API compatible and is a near perfect standin for this module. It is faster
+in all instances where it counts and is actively maintained. Any undocumented deviation
+of MediaWiki::DumpFile::Compat from Parse::MediaWikiDump is considered a bug and will
+be fixed. 
 
 =head1 METHODS
 

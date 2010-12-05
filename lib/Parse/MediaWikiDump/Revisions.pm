@@ -276,10 +276,12 @@ sub save_namespace_node {
 sub handle_mediawiki_node {
 	my ($engine, $a, $element, $attrs) = @_;
 	my $version = $attrs->{version};
-	
-	if ($version ne '0.3' && $version ne '0.4') {
-			die "Only version 0.3 and 0.4 dump files are supported";
-	}
+
+	#checking versions of the dump file removed in 1.0.6 
+	#see the migration notes for why	
+#	if ($version ne '0.3' && $version ne '0.4') {
+#			die "Only version 0.3 and 0.4 dump files are supported";
+#	}
 	
 	$a->{version} = $version;
 }
@@ -327,10 +329,11 @@ revision per article use the Parse::MediaWikiDump::Revisions object.
 =head1 STATUS
 
 This software is being RETIRED - MediaWiki::DumpFile is the official successor to
-Parse::MediaWikiDump and includes a compatibility library called 
-MediaWiki::DumpFile::Compat that is API compatible with this module. Please
-begin testing MediaWiki::DumpFile::Compat and report success or failure
-to the author of this module. 
+Parse::MediaWikiDump and includes a compatibility library called MediaWiki::DumpFile::Compat
+that is 100% API compatible and is a near perfect standin for this module. It is faster
+in all instances where it counts and is actively maintained. Any undocumented deviation
+of MediaWiki::DumpFile::Compat from Parse::MediaWikiDump is considered a bug and will
+be fixed. 
 
 =head1 METHODS
 

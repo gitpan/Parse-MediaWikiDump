@@ -5,7 +5,9 @@ Revision history for Parse-MediaWikiDump
 	  to absence of 'LOCK TABLES ...' line in link dump file?
 	* Added option to pass input to ::Pages constructor via named parameters so
 	  that MediaWiki::DumpFile::Compat and ::Pages share the same API 
-	* Software is nearly retired, only need more testing on MediaWiki::DumpFile::Compat
+	* Software is nearly retired, only need more testing on MediaWiki::DumpFile::Compat;
+	  Please begin using MediaWiki::DumpFile::Compat instead of this package and
+	  report problems if you encounter them. 
 
 1.0.5	Apr 21, 2010 
 	* Updated docs pointing people to MediaWiki::DumpFile::Compat

@@ -1,5 +1,5 @@
 package Parse::MediaWikiDump;
-our $VERSION = '1.0.6_02';
+our $VERSION = '1.0.6';
 
 use Parse::MediaWikiDump::XML;
 use Parse::MediaWikiDump::Revisions;
@@ -203,10 +203,26 @@ dump files and the SQL based links dump file.
 =head1 STATUS
 
 This software is being RETIRED - MediaWiki::DumpFile is the official successor to
-Parse::MediaWikiDump and includes a compatibility library called 
-MediaWiki::DumpFile::Compat that is API compatible with this module. Please
-begin testing MediaWiki::DumpFile::Compat and report success or failure
-to the author of this module. 
+Parse::MediaWikiDump and includes a compatibility library called MediaWiki::DumpFile::Compat
+that is 100% API compatible and is a near perfect standin for this module. It is faster
+in all instances where it counts and is actively maintained. Any undocumented deviation
+of MediaWiki::DumpFile::Compat from Parse::MediaWikiDump is considered a bug and will
+be fixed. 
+
+=head2 Migration
+
+Please begin using MediaWiki::DumpFile::Compat immediately as a replacement for this
+module. There will be no more features added to this software suite and bugs may not
+be fixed. Parse::MediaWikiDump::Pages used to check the version of the dump file it is
+parsing and reject versions it does not know about; this behavior has been removed. The
+parser will now continue in this instance and hope for the best. This way this software
+will continue to run into the future with out requiring further adjustment for as long
+as the upstream fileformat remains compatible. 
+
+In the event there is an unfixable bug or the dump file format changes in an incompatible 
+way the Parse::MediaWikiDump module as a whole wil be replaced with a stub that brings in
+MediaWiki::DumpFile::Compat - this may never need to happen but it is the plan for when it
+does. Migrating on your terms instead of being forced to if this happens is suggested. 
 
 =head1 USAGE
 
